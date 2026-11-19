@@ -4,6 +4,12 @@
 
 ## 使用方式
 
+### GitHub Pages 個人雲端版
+
+網站首頁導向 `ACT20261119-03.html`。線上版本透過 Supabase Auth 登入，專案及桿件資料由 Postgres RLS 限制為唯一擁有者讀寫。未登入仍可用內建規格計算；重新整理頁面需重新登入。部署與權限設定見 `supabase/README.md`。
+
+本機 SQLite 與雲端資料庫各自儲存，不會持續自動同步。
+
 ### ACT20261119-03 本機專案資料庫
 
 執行 `start-projects.cmd`（需 Node.js 24 以上），使用開啟的 `http://127.0.0.1:8765/` 網頁。服務會自動建立 `data/projects.sqlite`，儲存專案名稱、輸入設定及計算結果；重新啟動後仍可讀取。使用期間請保留服務視窗。
@@ -12,7 +18,9 @@
 
 備份或搬移時，先關閉服務，再複製 `data/projects.sqlite` 與 `data/materials.sqlite`。直接雙擊 HTML 無法讀寫這些資料庫。舊有瀏覽器 IndexedDB 專案及桿件資料保留，但不會自動匯入。資料庫不納入版本控制。
 
-下載整個儲存庫後，以現代瀏覽器開啟 `index.html`，即會進入最新的 `autoCount(20190904)_活潑版.html`。也可將儲存庫放在靜態網頁主機上，以 `index.html` 作為入口；不需安裝前端套件或建置。
+下載整個儲存庫後，以現代瀏覽器開啟 `index.html`，即會進入 `ACT20261119-03.html`；本機儲存功能請使用上述啟動檔。
+
+### 舊版 autoCount 工具
 
 1. 設定 X、Y 軸間距、支撐範圍及四角高度，執行配置計算。
 2. 在單重設定頁調整 20 種桿件單重，可匯出及匯入 JSON 備份。
@@ -25,7 +33,9 @@
 | 檔案 | 用途 |
 | --- | --- |
 | `index.html` | 最終版入口 |
-| `autoCount(20190904)_活潑版.html` | 最新版配置計算與 3D 預覽 |
+| `ACT20261119-03.html` | 現行配置計算、個人雲端登入與 3D 預覽 |
+| `ds-storage.js` | 本機 SQLite／雲端 Supabase 存取 |
+| `autoCount(20190904)_活潑版.html` | 保留的舊版配置計算與 3D 預覽 |
 | `桿件重量修改_活潑版.html` | 最新版單重設定 |
 | `autocount-theme_活潑版.css` | 最新版樣式 |
 | `material-weights_活潑版.js` | 單重資料、驗證與備份 |

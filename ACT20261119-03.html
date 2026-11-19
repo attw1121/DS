@@ -159,6 +159,16 @@
       </nav>
     </div>
   </header>
+  <section class="shell panel" id="cloud-account" aria-labelledby="cloud-account-heading" hidden>
+    <h2 id="cloud-account-heading">個人雲端資料庫</h2>
+    <form id="cloud-login">
+      <div class="field"><label for="cloud-email">電子郵件</label><input id="cloud-email" name="email" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="cloud-password">密碼</label><input id="cloud-password" name="password" type="password" autocomplete="current-password" required></div>
+      <button type="submit">登入</button>
+    </form>
+    <button type="button" id="cloud-logout" hidden>登出</button>
+    <p id="cloud-account-status" role="status" class="hint">登入後才能讀寫專案及桿件資料。重新整理頁面後需重新登入。</p>
+  </section>
   <main class="shell layout" id="calculator-page">
     <form id="calculator">
       <section class="panel" aria-labelledby="spacing-heading">
@@ -293,7 +303,7 @@
         </div>
         <button type="submit" disabled>新增並儲存</button>
       </form>
-      <p class="hint">平主架用於各支撐點的第一支主架，主架用於向上接續，橫桿用於 X、Y 軸間距。運算採用高度 150 cm 的斜桿。規格與重量儲存在資料夾內的 data/materials.sqlite。</p>
+      <p class="hint">平主架用於各支撐點的第一支主架，主架用於向上接續，橫桿用於 X、Y 軸間距。運算採用高度 150 cm 的斜桿。規格與重量：本機版儲存於 data/materials.sqlite，線上版登入後儲存於個人雲端資料庫。</p>
       <p id="catalog-status" role="status"></p>
     </div>
     <div class="panel">
@@ -307,6 +317,8 @@
       </form>
     </div>
   </section>
+  <script src="cloud-config.js"></script>
+  <script src="ds-storage.js"></script>
   <script src="scaffold-model.js"></script>
   <script src="scaffold-sucoot.js"></script>
   <script src="scaffold-viewer3d.js"></script>
@@ -1072,12 +1084,7 @@
   }
 
   async function projectRequest(endpoint = '', options = {}) {
-    const response = await fetch('/api/projects' + endpoint, {
-      ...options,
-      headers: {'Content-Type': 'application/json'}
-    });
-    if (!response.ok) throw new Error('專案資料庫讀寫失敗');
-    return response.json();
+    return globalThis.DSStorage.request('projects', endpoint, options);
   }
 
   async function refreshProjects(selectedId = '') {
@@ -1095,11 +1102,11 @@
       if (location.protocol === 'file:') throw new Error('需要本機服務');
       await refreshProjects();
       projectDatabase = true;
-      projectStatus.textContent = '專案儲存在資料夾內的 data/projects.sqlite。';
+      projectStatus.textContent = globalThis.DSStorage.local ? '專案儲存在資料夾內的 data/projects.sqlite。' : '專案儲存在個人 Supabase 雲端資料庫。';
       updateProjectButtons();
     } catch {
       projectDatabase = undefined;
-      projectStatus.textContent = '請執行資料夾內的 start-projects.cmd，再於開啟的網頁儲存或讀取專案。';
+      projectStatus.textContent = globalThis.DSStorage.local ? '請執行資料夾內的 start-projects.cmd，再於開啟的網頁儲存或讀取專案。' : '請先登入個人帳號；若已登入，請確認雲端連線後重新登入。';
       updateProjectButtons();
     }
   }
@@ -1255,13 +1262,7 @@
     select('gap-help').textContent = '可用間距為 ' + railSizes.join('、') + ' m。請以逗號或空格分隔多個數值。';
   }
   async function catalogRequest(options = {}) {
-    const response = await fetch('/api/materials', {...options, headers: {'Content-Type': 'application/json'}});
-    if (!response.ok) {
-      const error = new Error('桿件資料庫讀寫失敗');
-      if (response.status === 409) error.name = 'ConstraintError';
-      throw error;
-    }
-    return response.json();
+    return globalThis.DSStorage.request('materials', '', options);
   }
   async function openCatalog() {
     if (location.protocol === 'file:') throw new Error('需要本機服務');
@@ -1358,12 +1359,12 @@
       database = await openCatalog();
       catalog = await readCatalog();
       renderCatalog();
-      setStatus('已從 data/materials.sqlite 載入 ' + catalog.length + ' 筆桿件規格。');
+      setStatus('已從' + (globalThis.DSStorage.local ? ' data/materials.sqlite ' : '個人雲端資料庫') + '載入 ' + catalog.length + ' 筆桿件規格。');
       setBusy(false);
     } catch {
       database = undefined;
       form.querySelector('button[type="submit"]').disabled = false;
-      setStatus('無法連線至桿件資料庫，請執行 start-projects.cmd。目前僅可用內建規格計算。', true);
+      setStatus(globalThis.DSStorage.local ? '無法連線至桿件資料庫，請執行 start-projects.cmd。目前僅可用內建規格計算。' : '請先登入以使用雲端桿件資料。目前可用內建規格計算。', true);
     }
   }
   function clearResults() {
@@ -1535,6 +1536,15 @@
       error.hidden = false;
       if (failure.field) fields[failure.field].focus();
     }
+  });
+  globalThis.addEventListener('ds-auth-change', () => {
+    clearResults();
+    savedProjects.replaceChildren(new Option('選擇專案', ''));
+    projectDatabase = undefined;
+    database = undefined;
+    updateProjectButtons();
+    void initCatalog();
+    void initProjects();
   });
   void initCatalog();
   void initProjects();
