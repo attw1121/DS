@@ -1,0 +1,162 @@
+[
+  {
+    "code": "V60100",
+    "weight": 5.75,
+    "kind": "frame",
+    "size": 1,
+    "rise": null,
+    "spec": "frame:1"
+  },
+  {
+    "code": "V60150",
+    "weight": 8.63,
+    "kind": "frame",
+    "size": 1.5,
+    "rise": null,
+    "spec": "frame:1.5"
+  },
+  {
+    "code": "V60300",
+    "weight": 17.4,
+    "kind": "frame",
+    "size": 3,
+    "rise": null,
+    "spec": "frame:3"
+  },
+  {
+    "code": "V61100",
+    "weight": 6.8,
+    "kind": "main",
+    "size": 1,
+    "rise": null,
+    "spec": "main:1"
+  },
+  {
+    "code": "V61150",
+    "weight": 9.68,
+    "kind": "main",
+    "size": 1.5,
+    "rise": null,
+    "spec": "main:1.5"
+  },
+  {
+    "code": "V62025",
+    "weight": 2.28,
+    "kind": "other",
+    "size": 0.25,
+    "rise": null,
+    "spec": "V62025"
+  },
+  {
+    "code": "V62050",
+    "weight": 3.38,
+    "kind": "other",
+    "size": 0.5,
+    "rise": null,
+    "spec": "V62050"
+  },
+  {
+    "code": "V62020",
+    "weight": 2.2,
+    "kind": "other",
+    "size": 0.2,
+    "rise": null,
+    "spec": "V62020"
+  },
+  {
+    "code": "U48601",
+    "weight": 5.96,
+    "kind": "other",
+    "size": null,
+    "rise": null,
+    "spec": "U48601"
+  },
+  {
+    "code": "J48601",
+    "weight": 4.91,
+    "kind": "other",
+    "size": null,
+    "rise": null,
+    "spec": "J48601"
+  },
+  {
+    "code": "H66060",
+    "weight": 2.4,
+    "kind": "rail",
+    "size": 0.6,
+    "rise": null,
+    "spec": "rail:0.6"
+  },
+  {
+    "code": "H66090",
+    "weight": 3.18,
+    "kind": "rail",
+    "size": 0.9,
+    "rise": null,
+    "spec": "rail:0.9"
+  },
+  {
+    "code": "H66150",
+    "weight": 4.7,
+    "kind": "rail",
+    "size": 1.5,
+    "rise": null,
+    "spec": "rail:1.5"
+  },
+  {
+    "code": "H66180",
+    "weight": 5.5,
+    "kind": "rail",
+    "size": 1.8,
+    "rise": null,
+    "spec": "rail:1.8"
+  },
+  {
+    "code": "H66240",
+    "weight": 7.32,
+    "kind": "rail",
+    "size": 2.4,
+    "rise": null,
+    "spec": "rail:2.4"
+  },
+  {
+    "code": "D60615",
+    "weight": 5.62,
+    "kind": "brace",
+    "size": 0.6,
+    "rise": 1.5,
+    "spec": "brace:0.6:1.5"
+  },
+  {
+    "code": "D60915",
+    "weight": 5.98,
+    "kind": "brace",
+    "size": 0.9,
+    "rise": 1.5,
+    "spec": "brace:0.9:1.5"
+  },
+  {
+    "code": "D61515",
+    "weight": 6.8,
+    "kind": "brace",
+    "size": 1.5,
+    "rise": 1.5,
+    "spec": "brace:1.5:1.5"
+  },
+  {
+    "code": "D61815",
+    "weight": 7.32,
+    "kind": "brace",
+    "size": 1.8,
+    "rise": 1.5,
+    "spec": "brace:1.8:1.5"
+  },
+  {
+    "code": "D62415",
+    "weight": 8.66,
+    "kind": "brace",
+    "size": 2.4,
+    "rise": 1.5,
+    "spec": "brace:2.4:1.5"
+  }
+]
