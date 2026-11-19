@@ -20,7 +20,7 @@
     'S-D-02,D61515,0,1.5,0,1.5,1.5,1.5,示例斜桿'
   ].join('\r\n');
 
-  function create(section) {
+  function create(section, {loadExample} = {}) {
     if (!section || typeof section.replaceChildren !== 'function') throw new Error('找不到 3D 圖面區塊。');
     instances.get(section)?.destroy();
     const document = section.ownerDocument;
@@ -86,7 +86,20 @@
     const importButton = button('import-csv', '匯入端點 CSV', true);
     const sampleButton = button('download-sample', '下載 CSV 範例');
     const exampleButton = button('example', '載入示例');
+    const catalogButton = button('catalog', '查看實固桿件型錄');
+    const catalogPicker = element('select');
+    const catalogPickerLabel = element('label', 'model-color-control', '型錄規格 ');
+    catalogPicker.id = 'model3d-catalog-size';
+    catalogPickerLabel.htmlFor = catalogPicker.id;
+    catalogPickerLabel.appendChild(catalogPicker);
+    catalogPickerLabel.hidden = true;
+    for (const [code, label] of [['', '全部規格'], ...Object.entries(root.ScaffoldSucoot?.specs ?? {}).map(([code, spec]) => [code, spec.label])]) {
+      const option = element('option', '', label);
+      option.value = code;
+      catalogPicker.appendChild(option);
+    }
     dataActions.append(pngButton, csvButton, importButton, sampleButton, exampleButton);
+    if (root.ScaffoldSucoot) dataActions.append(catalogButton, catalogPickerLabel);
     const fileInput = element('input'); fileInput.type = 'file'; fileInput.accept = '.csv,text/csv'; fileInput.hidden = true; fileInput.id = 'model3d-import-file';
     dataActions.appendChild(fileInput);
 
@@ -113,6 +126,9 @@
       importButton.disabled = busy || !root.ScaffoldModel;
       exampleButton.disabled = busy || !root.ScaffoldModel;
       sampleButton.disabled = busy;
+      catalogButton.disabled = busy || !root.ScaffoldModel;
+      catalogPicker.disabled = catalogButton.disabled;
+      catalogPickerLabel.hidden = displaySource !== 'catalog';
       legend.querySelectorAll('input').forEach(node => { node.disabled = busy || !canDraw; });
       legendHeading.querySelector('button').disabled = busy || !canDraw;
       fileInput.disabled = busy;
@@ -148,6 +164,8 @@
         return;
       }
       selection.append(element('strong', '', String(member.id) + ' · ' + String(member.code)));
+      const spec = root.ScaffoldSucoot?.specs[member.code];
+      if (spec) selection.appendChild(element('p', 'hint', spec.label));
       const list = element('dl', 'model-coordinate-list');
       const length = Math.hypot(...member.end.map((value, index) => value - member.start[index]));
       for (const [label, value] of [
@@ -170,11 +188,16 @@
       model = value; displaySource = source;
       empty.hidden = true;
       badge.dataset.source = source;
-      badge.textContent = source === 'inferred' ? '配置推導示意' : source === 'sample' ? '示例座標' : '匯入端點座標';
+      const sourceLabels = {inferred: '配置推導示意', sample: '示例座標', catalog: '實固桿件型錄', coordinates: '匯入端點座標'};
+      badge.textContent = sourceLabels[source];
       notice.hidden = false;
-      notice.textContent = source === 'inferred' ? '依配置與規格推導的組立示意；套筒、可調件與接點位置待確認。' :
-        source === 'sample' ? '目前顯示內建示例，不代表上方配置或數量。此圖面不會修改上方材料清單。' :
-          '直接使用每支桿件的端點座標；此圖面不會修改上方材料清單。';
+      const sourceNotices = {
+        inferred: '依實固型錄規格與配置座標繪製。接點高度由配置推估，未標註尺寸的零件以近似外形呈現。',
+        sample: '目前顯示內建示例。',
+        catalog: '型錄第 20–21 頁桿件與調整座。點選構件可查看標稱尺寸，未標註尺寸的零件以近似外形呈現。',
+        coordinates: '圖面使用匯入檔案指定的桿件端點座標。'
+      };
+      notice.textContent = sourceNotices[source];
       const counts = new Map();
       model.members.forEach(member => counts.set(member.code, (counts.get(member.code) || 0) + 1));
       legend.replaceChildren();
@@ -183,7 +206,9 @@
         const checkbox = element('input'); checkbox.type = 'checkbox'; checkbox.checked = true; checkbox.value = code;
         checkbox.setAttribute('aria-label', '顯示 ' + code); checkbox.dataset.modelType = code;
         const dot = element('span', 'model-legend-dot'); dot.dataset.code = code; dot.setAttribute('aria-hidden', 'true');
-        label.append(checkbox, dot, element('span', '', code), element('small', '', number(count) + ' 支'));
+        const spec = root.ScaffoldSucoot?.specs[code];
+        const caption = source === 'catalog' && spec ? spec.label : code;
+        label.append(checkbox, dot, element('span', '', caption), element('small', '', number(count) + ' 支'));
         legend.appendChild(label);
       }
       issues.replaceChildren();
@@ -215,6 +240,10 @@
       link.download = filename; document.body.appendChild(link); link.click(); link.remove();
       if (objectUrl) window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
     }
+    function showCatalog(code) {
+      const preview = root.ScaffoldModel.parseCSV(root.ScaffoldSucoot.previewCSV(code));
+      applyModel({...preview, source: 'catalog'}, 'catalog');
+    }
     function onClick(event) {
       const control = event.target.closest('button[data-model-action]');
       if (!control || !section.contains(control) || control.disabled || busy) return;
@@ -229,7 +258,18 @@
         else if (action === 'export-csv') download(root.ScaffoldModel.toCSV(model), displaySource === 'sample' ? '桿件端點座標_示例.csv' : '桿件端點座標.csv');
         else if (action === 'import-csv') fileInput.click();
         else if (action === 'download-sample') download(SAMPLE_CSV, '桿件端點座標_範例.csv');
-        else if (action === 'example') { operation++; applyModel(root.ScaffoldModel.parseCSV(SAMPLE_CSV), 'sample'); }
+        else if (action === 'example') {
+          if (loadExample) loadExample();
+          else {
+            operation++;
+            applyModel(root.ScaffoldModel.parseCSV(SAMPLE_CSV), 'sample');
+          }
+        }
+        else if (action === 'catalog') {
+          operation++;
+          catalogPicker.value = '';
+          showCatalog('');
+        }
         else if (action === 'show-all') {
           legend.querySelectorAll('input').forEach(input => { input.checked = true; }); applyVisibility();
         }
@@ -237,6 +277,9 @@
     }
     async function onChange(event) {
       if (event.target === colorMode) { viewer?.setColorMode(colorMode.value); updateLegendColors(); }
+      else if (event.target === catalogPicker) {
+        try { showCatalog(catalogPicker.value); } catch (failure) { showError(failure); }
+      }
       else if (event.target.matches('input[data-model-type]')) applyVisibility();
       else if (event.target === fileInput) {
         const file = fileInput.files[0]; fileInput.value = '';
@@ -260,8 +303,15 @@
     if (!root.ScaffoldModel) showError(new Error('無法載入座標模型程式，請確認 scaffold-model.js 位於相同資料夾。'));
 
     instance = {
+      setAssembly(value) {
+        if (destroyed) return;
+        operation++;
+        busy = false;
+        lastDetails = null;
+        applyModel(value, 'inferred');
+      },
       setCalculation(details) {
-        if (destroyed || !details || details === lastDetails) return;
+        if (destroyed || !details || (details === lastDetails && displaySource === 'inferred')) return;
         lastDetails = details;
         operation++; busy = false;
         try { applyModel(root.ScaffoldModel.fromCalculation(details), 'inferred'); }

@@ -157,7 +157,8 @@
       }
     }
 
-    const bottom = base + 0.2;
+    // The 200 mm standard base has its rosette 100 mm above the jack.
+    const bottom = base + 0.1;
     function validLink(link, firstType, lastType) {
       if (!link || !['X', 'Y'].includes(link.axis) || !Number.isInteger(link.typeIndex) || link.typeIndex < firstType || link.typeIndex > lastType) throw new Error('橫桿或斜桿配置資料格式不正確。');
       count(link.count, '逐跨桿件');
@@ -290,5 +291,13 @@
     return '\uFEFF' + lines.join('\r\n') + '\r\n';
   }
 
-  root.ScaffoldModel = Object.freeze({COLORS, fromCalculation, parseCSV, toCSV});
+  function fromMembers(records, issues = []) {
+    if (!records.length || records.length > LIMIT) throw new Error('3D 圖面支援 1 至 50,000 支桿件。');
+    const members = records.map((record, index) => makeMember(
+      record.code + '-' + (index + 1), record.code, record.start, record.end, 'inferred', record.note
+    ));
+    return finish(members, issues, 'inferred');
+  }
+
+  root.ScaffoldModel = Object.freeze({COLORS, fromCalculation, fromMembers, parseCSV, toCSV});
 })(typeof window === 'undefined' ? globalThis : window);

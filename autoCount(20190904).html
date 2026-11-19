@@ -3,112 +3,223 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>桿件計算</title>
+  <title>支撐架桿件計算</title>
   <style>
-    * { box-sizing: border-box; }
-    body { margin: 16px; background: #d6c8a2; color: #222; font-family: sans-serif; line-height: 1.5; }
-    main { max-width: 750px; }
-    img { display: block; max-width: 100%; height: auto; }
-    h2 { margin: 24px 0 12px; font-size: 1rem; }
-    p { margin: 12px 0; }
-    input, select, textarea, button { font: inherit; max-width: 100%; }
-    input[type="number"] { width: 200px; }
-    textarea { width: 250px; min-height: 2rem; resize: vertical; vertical-align: middle; }
-    .option { display: inline-block; color: #a00000; }
-    #baseh { width: 90px; }
-    #error { color: #a00000; }
-    table { width: 100%; max-width: 550px; border-collapse: collapse; }
-    th, td { padding: 6px; border: 1px solid #555; overflow-wrap: anywhere; }
-    button { padding: 4px 16px; }
+    :root {
+      color-scheme: light;
+      --ink: #16263a;
+      --muted: #50647b;
+      --border: #d5dfea;
+      --blue: #22559c;
+      --panel: #fff;
+      --mist: #f1f5fa;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #eaf0f6;
+      font: 1rem/1.55 "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+    h1, h2, p, figure { margin: 0; }
+    .shell { width: min(1220px, calc(100% - clamp(28px, 8vw, 112px))); margin-inline: auto; }
+    .hero {
+      color: #fff;
+      background-color: #132845;
+      background-image: linear-gradient(90deg, #132845 25%, transparent), linear-gradient(#ffffff12 1px, transparent 1px), linear-gradient(90deg, #ffffff12 1px, transparent 1px);
+      background-size: auto, 32px 32px, 32px 32px;
+      padding-block: clamp(32px, 5vw, 66px);
+      border-bottom: 4px solid #dca552;
+    }
+    h1 { font-size: clamp(1.95rem, 4vw, 3.35rem); line-height: 1.18; letter-spacing: .035em; }
+    .hero p { margin-top: 12px; color: #d6e4f6; }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+      gap: 22px;
+      align-items: start;
+      padding-block: 26px 56px;
+    }
+    form, .sidebar { min-width: 0; display: grid; gap: 18px; }
+    .panel {
+      min-width: 0;
+      padding: clamp(16px, 2.5vw, 27px);
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      background: var(--panel);
+      box-shadow: 0 3px 12px #16263a09;
+    }
+    h2, caption { font-size: 1.2rem; line-height: 1.3; font-weight: 750; }
+    .panel > h2 { margin-bottom: 16px; }
+    .axis-grid, .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .axis { min-inline-size: 0; margin: 0; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--mist); }
+    .axis legend { padding: 2px 9px; border-radius: 5px; color: #fff; background: #244873; font-weight: 700; }
+    .axis + .axis legend { background: #455c77; }
+    .axis .field + .field { margin-top: 14px; }
+    .field > label { display: block; margin-bottom: 5px; font-size: .92rem; font-weight: 650; }
+    .option { display: flex; align-items: center; gap: 7px; min-height: 32px; color: var(--muted); font-size: .9rem; }
+    .option label, .option input { cursor: pointer; }
+    .option input { width: 17px; height: 17px; margin: 0; accent-color: var(--blue); }
+    input, select, textarea, button { font: inherit; }
+    input[type="number"], select, textarea {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      min-height: 44px;
+      padding: 8px 11px;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid #a9b9cc;
+      border-radius: 7px;
+    }
+    textarea { resize: vertical; }
+    textarea::placeholder { color: #5f7084; opacity: 1; }
+    :is(input, select, textarea):disabled { color: #586a7d; background: #e9eff6; border-color: var(--border); }
+    :focus-visible { outline: 3px solid #2d6cc4; outline-offset: 2px; }
+    .hint { margin-top: 12px; color: var(--muted); font-size: .9rem; }
+    .adjustments { margin-top: 17px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .actions { display: grid; justify-items: start; gap: 12px; }
+    button {
+      padding: 11px 26px;
+      color: #fff;
+      background: var(--blue);
+      border: 1px solid transparent;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:hover { background: #17437d; }
+    #error { width: 100%; padding: 9px 12px; color: #922820; background: #fff1ef; border-radius: 7px; overflow-wrap: anywhere; }
+    figure img { display: block; width: 100%; height: auto; border-radius: 8px; }
+    figure a { display: block; border-radius: 8px; }
+    #results { padding: 0; }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; font-size: .92rem; }
+    caption { padding: 18px 14px; text-align: left; }
+    th, td { padding: 9px clamp(6px, .75vw, 12px); border-top: 1px solid var(--border); text-align: right; }
+    thead th { background: #e5eef8; color: #254365; font-size: .82rem; }
+    th:first-child, td:first-child { text-align: left; }
+    tbody tr:nth-child(even) { background: #f5f8fc; }
+    tfoot th, tfoot td { background: #183456; color: #fff; font-weight: 750; }
+    tfoot th { border-bottom-left-radius: 14px; }
+    tfoot td { border-bottom-right-radius: 14px; overflow-wrap: anywhere; }
+    @media (max-width: 850px) {
+      .layout { grid-template-columns: minmax(0, 1fr); }
+      .sidebar { display: contents; }
+      .reference { grid-row: 1; }
+      .reference figure { max-width: 500px; }
+    }
+    @media (max-width: 540px) {
+      .axis-grid { grid-template-columns: minmax(0, 1fr); }
+      .hero p { font-size: .93rem; }
+      .actions button { width: 100%; }
+    }
   </style>
 </head>
 <body>
-  <main>
-    <img src="05_1.png" width="498" height="247" alt="支撐架配置及四角高度示意圖">
+  <header class="hero">
+    <div class="shell">
+      <h1>支撐架桿件計算</h1>
+      <p>輸入支撐範圍、間距與四角高度，計算桿件用量及重量。</p>
+    </div>
+  </header>
+  <main class="shell layout">
     <form id="calculator">
-      <h2>1. 支撐架配置間距</h2>
-      <p>
-        <label for="a1">支撐架間距（X 軸）</label>
-        <select id="a1" name="a1">
-          <option value="0.6">0.6</option>
-          <option value="0.9">0.9</option>
-          <option value="1.5">1.5</option>
-          <option value="1.8">1.8</option>
-          <option value="2.4">2.4</option>
-        </select>
-      </p>
-      <p>
-        <label for="a9">自訂間距 X 軸（m）</label><br>
-        <textarea placeholder="例如：0.6, 0.9, 1.5" aria-describedby="gap-help" id="a9" name="a9" rows="1" disabled></textarea>
-        <span class="option"><input type="checkbox" id="ck01" name="ck01"> <label for="ck01">自訂間距請勾選</label></span>
-      </p>
-      <p>
-        <label for="a11" id="lab01" style="color: gray">自訂斜桿位置 X 軸</label><br>
-        <textarea placeholder="例如：1, 3（第 1、3 跨）" id="a11" name="a11" rows="1" disabled></textarea>
-        <span class="option"><input type="checkbox" id="ck03" name="ck03"> <label for="ck03">自訂位置請勾選</label></span>
-      </p>
-      <p>
-        <label for="a2">支撐架間距（Y 軸）</label>
-        <select id="a2" name="a2">
-          <option value="0.6">0.6</option>
-          <option value="0.9">0.9</option>
-          <option value="1.5">1.5</option>
-          <option value="1.8">1.8</option>
-          <option value="2.4">2.4</option>
-        </select>
-      </p>
-      <p>
-        <label for="a10">自訂間距 Y 軸（m）</label><br>
-        <textarea placeholder="例如：0.6, 0.9, 1.5" aria-describedby="gap-help" id="a10" name="a10" rows="1" disabled></textarea>
-        <span class="option"><input type="checkbox" id="ck02" name="ck02"> <label for="ck02">自訂間距請勾選</label></span>
-      </p>
-      <p>
-        <label for="a12" id="lab02" style="color: gray">自訂斜桿位置 Y 軸</label><br>
-        <textarea placeholder="例如：1, 3（第 1、3 跨）" id="a12" name="a12" rows="1" disabled></textarea>
-        <span class="option"><input type="checkbox" id="ck04" name="ck04"> <label for="ck04">自訂位置請勾選</label></span>
-      </p>
-      <p id="gap-help">自訂間距支援 0.6、0.9、1.5、1.8、2.4 m；數值以逗號或空白分隔。</p>
-      <h2>2. 支撐範圍（長、寬）</h2>
-      <p>
-        <label for="a3" id="lab03">X 軸長度 L1（m）</label><br>
-        <input type="number" id="a3" name="a3" min="0" step="any" required>
-      </p>
-      <p>
-        <label for="a4" id="lab04">Y 軸長度 L2（m）</label><br>
-        <input type="number" id="a4" name="a4" min="0" step="any" required>
-      </p>
-      <h2>3. 支撐高度</h2>
-      <p>
-        <label for="a5">① 高度（m）</label><br>
-        <input type="number" id="a5" name="a5" min="0" step="any" required>
-      </p>
-      <p>
-        <label for="a6">② 高度（m）</label><br>
-        <input type="number" id="a6" name="a6" min="0" step="any" required>
-      </p>
-      <p>
-        <label for="a7">③ 高度（m）</label><br>
-        <input type="number" id="a7" name="a7" min="0" step="any" required>
-      </p>
-      <p>
-        <label for="a8">④ 高度（m）</label><br>
-        <input type="number" id="a8" name="a8" min="0" step="any" required>
-      </p>
-      <p>
-        <label for="baseh">下調調整高度（m）</label>
-        <input type="number" id="baseh" name="baseh" value="0.2" min="0" step="any">
-      </p>
-      <p>
-        <label for="v60h">平主架尺寸（m）</label>
-        <select id="v60h" name="v60h">
-          <option value="3">3.0</option>
-          <option value="1.5">1.5</option>
-        </select>
-      </p>
-      <p><button type="submit">運算</button></p>
-      <p id="error" role="alert" hidden></p>
+      <section class="panel" aria-labelledby="spacing-heading">
+        <h2 id="spacing-heading">支撐架間距</h2>
+        <div class="axis-grid">
+          <fieldset class="axis">
+            <legend>X 軸</legend>
+            <div class="field">
+              <label for="a1">支撐架間距（m）</label>
+              <select id="a1" name="a1">
+                <option value="0.6">0.6</option>
+                <option value="0.9">0.9</option>
+                <option value="1.5">1.5</option>
+                <option value="1.8">1.8</option>
+                <option value="2.4">2.4</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="a9">自訂間距（m）</label>
+              <span class="option"><input type="checkbox" id="ck01" name="ck01"><label for="ck01">使用 X 軸自訂間距</label></span>
+              <textarea id="a9" name="a9" rows="1" placeholder="例如 0.6, 0.9, 1.5" aria-describedby="gap-help" disabled></textarea>
+            </div>
+            <div class="field">
+              <label for="a11" id="lab01">斜桿配置位置</label>
+              <span class="option"><input type="checkbox" id="ck03" name="ck03"><label for="ck03">自訂 X 軸斜桿位置</label></span>
+              <textarea id="a11" name="a11" rows="1" placeholder="例如 1, 3（第 1、3 跨）" disabled></textarea>
+            </div>
+          </fieldset>
+          <fieldset class="axis">
+            <legend>Y 軸</legend>
+            <div class="field">
+              <label for="a2">支撐架間距（m）</label>
+              <select id="a2" name="a2">
+                <option value="0.6">0.6</option>
+                <option value="0.9">0.9</option>
+                <option value="1.5">1.5</option>
+                <option value="1.8">1.8</option>
+                <option value="2.4">2.4</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="a10">自訂間距（m）</label>
+              <span class="option"><input type="checkbox" id="ck02" name="ck02"><label for="ck02">使用 Y 軸自訂間距</label></span>
+              <textarea id="a10" name="a10" rows="1" placeholder="例如 0.6, 0.9, 1.5" aria-describedby="gap-help" disabled></textarea>
+            </div>
+            <div class="field">
+              <label for="a12" id="lab02">斜桿配置位置</label>
+              <span class="option"><input type="checkbox" id="ck04" name="ck04"><label for="ck04">自訂 Y 軸斜桿位置</label></span>
+              <textarea id="a12" name="a12" rows="1" placeholder="例如 1, 3（第 1、3 跨）" disabled></textarea>
+            </div>
+          </fieldset>
+        </div>
+        <p id="gap-help" class="hint">支援 0.6、0.9、1.5、1.8、2.4 m。輸入多個數值時，請用逗號或空格分隔。</p>
+      </section>
+      <section class="panel" aria-labelledby="extent-heading">
+        <h2 id="extent-heading">支撐範圍</h2>
+        <div class="fields">
+          <div class="field"><label for="a3" id="lab03">X 軸長度 L1（m）</label><input type="number" id="a3" name="a3" min="0" step="any" required></div>
+          <div class="field"><label for="a4" id="lab04">Y 軸長度 L2（m）</label><input type="number" id="a4" name="a4" min="0" step="any" required></div>
+        </div>
+      </section>
+      <section class="panel" aria-labelledby="height-heading">
+        <h2 id="height-heading">四角支撐高度</h2>
+        <div class="fields">
+          <div class="field"><label for="a5">① 高度（m）</label><input type="number" id="a5" name="a5" min="0" step="any" required></div>
+          <div class="field"><label for="a6">② 高度（m）</label><input type="number" id="a6" name="a6" min="0" step="any" required></div>
+          <div class="field"><label for="a7">③ 高度（m）</label><input type="number" id="a7" name="a7" min="0" step="any" required></div>
+          <div class="field"><label for="a8">④ 高度（m）</label><input type="number" id="a8" name="a8" min="0" step="any" required></div>
+        </div>
+        <div class="fields adjustments">
+          <div class="field"><label for="baseh">下調整座高度（m）</label><input type="number" id="baseh" name="baseh" value="0.2" min="0" step="any"></div>
+          <div class="field">
+            <label for="v60h">平主架尺寸（m）</label>
+            <select id="v60h" name="v60h">
+              <option value="3">3.0</option>
+              <option value="1.5">1.5</option>
+            </select>
+          </div>
+        </div>
+      </section>
+      <div class="actions">
+        <button type="submit">計算桿件用量</button>
+        <p id="error" role="alert" hidden></p>
+      </div>
     </form>
-    <section id="results" aria-live="polite" hidden></section>
+    <div class="sidebar">
+      <section class="panel reference" aria-labelledby="reference-heading">
+        <h2 id="reference-heading">配置示意</h2>
+        <figure>
+          <a href="05_1.png" target="_blank" rel="noopener" aria-label="在新分頁查看配置示意大圖">
+            <img src="05_1.png" width="5762" height="2846" alt="配置長度 L1、寬度 L2 與四角高度 ① 至 ④ 的位置示意">
+          </a>
+          <figcaption class="hint">依圖中的 ① 至 ④ 填入各角高度。點圖可放大。</figcaption>
+        </figure>
+      </section>
+      <section class="panel" id="results" aria-live="polite" hidden></section>
+    </div>
   </main>
   <script>
 (() => {
@@ -946,6 +1057,7 @@
     footer.insertCell().textContent = total.toFixed(2);
     results.replaceChildren(table);
     results.hidden = false;
+    results.scrollIntoView({block: 'nearest'});
   }
   form.addEventListener('submit', event => {
     event.preventDefault();

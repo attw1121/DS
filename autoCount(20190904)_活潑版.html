@@ -100,6 +100,7 @@
   </main>
   <script src="material-weights_活潑版.js"></script>
   <script src="scaffold-model.js"></script>
+  <script src="scaffold-sucoot.js"></script>
   <script src="scaffold-viewer3d.js"></script>
   <script src="scaffold-3d-ui.js"></script>
   <script>
@@ -850,7 +851,7 @@
   let lastGeometry = null;
   const modelSection = document.getElementById('model-3d');
   const modelPanel = globalThis.Scaffold3DPanel ? Scaffold3DPanel.create(modelSection) : null;
-  if (!modelPanel) modelSection.textContent = '3D 圖面模組未能載入，請確認三個 scaffold JavaScript 檔案與本頁在同一資料夾。';
+  if (!modelPanel) modelSection.textContent = '3D 圖面模組未能載入，請確認 scaffold JavaScript 檔案與本頁在同一資料夾。';
   async function refreshWeights() {
     const request = ++weightRequest;
     weightsReady = false;

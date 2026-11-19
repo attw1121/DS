@@ -203,6 +203,7 @@
       lineMode = filtered.length > 6000;
       const data = [];
       const sides = 8;
+      const detailed = filtered.length <= 600;
       for (const {member, index} of filtered) {
         const start = local(member.start);
         const end = local(member.end);
@@ -215,8 +216,13 @@
           continue;
         }
         const direction = normalize(subtract(end, start));
-        const u = normalize(cross(direction, Math.abs(direction[2]) < 0.9 ? [0, 0, 1] : [0, 1, 0]));
+        const u = normalize(cross(direction, Math.hypot(direction[0], direction[1]) > 1e-7 ? [0, 0, 1] : [0, 1, 0]));
         const v = cross(direction, u);
+        const orient = ([x, y, z]) => u.map((value, axis) => value * x + v[axis] * y + direction[axis] * z);
+        if (root.ScaffoldSucoot?.mesh(member.code, Math.hypot(...subtract(end, start)), (point, normal) => {
+          const position = orient(point).map((value, axis) => value + start[axis]);
+          vertex(data, position, orient(normal), byType, byMember, id);
+        }, {detailed, specimen: model.source === 'catalog', product: model.products?.[member.code], slope: direction[2]})) continue;
         const tubeRadius = Number(member.radius) > 0 ? Number(member.radius) : /^[UJ]/.test(member.code) ? 0.045 : 0.03;
         function ring(angle, point) {
           const normal = u.map((value, axis) => value * Math.cos(angle) + v[axis] * Math.sin(angle));
