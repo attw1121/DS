@@ -239,7 +239,7 @@
           <div class="field"><label for="a8">④ 高度（m）</label><input type="number" id="a8" name="a8" min="0" step="any" required></div>
         </div>
         <div class="fields adjustments">
-          <div class="field"><label for="baseh">下調整座高度（m）</label><input type="number" id="baseh" name="baseh" value="0.2" min="0" step="any"><p class="hint">上調整座依配置自動計算，伸出高度至少 15 cm；達 35 cm 時自動調整主架或輔助桿。</p></div>
+          <div class="field"><label for="baseh">下調整座高度（m）</label><input type="number" id="baseh" name="baseh" value="0.2" min="0" step="any"><p class="hint">上調整座依配置自動計算，伸出高度為 15–40 cm。</p></div>
           <div class="field">
             <label for="v60h">平主架尺寸（m）</label>
             <select id="v60h" name="v60h">
@@ -329,27 +329,8 @@
 
   const LIMIT = 50000;
   const BRACE_DROP = 0.5;
-  const MAX_UPPER_JACK_EXTENSION = 0.35;
+  const MAX_UPPER_JACK_EXTENSION = 0.4;
   const MIN_UPPER_JACK_EXTENSION = 0.15;
-  function planUpperStack(room, mainSize) {
-    // 單位為 mm；優先用主架取代較零碎的輔助桿組合。
-    let best;
-    for (let short = 0; short <= 2; short++) {
-      for (const sleeve of [0, 250, 500, 750]) {
-        const tall = Math.floor((room - short * 1000 - sleeve - 150 + 1e-4) / mainSize);
-        const adjustment = room - tall * mainSize - short * 1000 - sleeve;
-        if (tall < 0 || adjustment < 150 - 1e-4 || adjustment >= 350 - 1e-4) continue;
-        const sleeveCount = Number(sleeve >= 500) + Number(sleeve % 500 === 250);
-        const count = tall + short + sleeveCount;
-        if (!best || sleeveCount < best.sleeveCount ||
-            (sleeveCount === best.sleeveCount && count < best.count) ||
-            (sleeveCount === best.sleeveCount && count === best.count && adjustment < best.adjustment)) {
-          best = {tall, short, sleeve, adjustment, sleeveCount, count};
-        }
-      }
-    }
-    return best;
-  }
   const RAIL_INTERVALS = [1.5, 1, 0.75, 0.5, 0.25];
   function planRails(base, frontTop, rearTop, frontAux, rearAux) {
     const tolerance = 1e-7;
@@ -484,8 +465,8 @@
           }
           const shown = length > 1e-7 ? length : 0.03;
           if (length <= 1e-7) issues.add('部分調整座的推估高度不足，以 30 mm 圖示顯示。');
-          if (code === 'U48601' && length >= MAX_UPPER_JACK_EXTENSION - 1e-7) {
-            throw new Error('上調整座的伸出量達 35 cm，請重新計算並調整主架或輔助桿。');
+          if (code === 'U48601' && length > MAX_UPPER_JACK_EXTENSION + 1e-7) {
+            throw new Error('上調整座的伸出量超過 40 cm。');
           }
           if (code === 'U48601' && length < MIN_UPPER_JACK_EXTENSION - 1e-7) {
             throw new Error('上調整座的伸出量低於 15 cm，請重新計算配置。');
@@ -546,7 +527,7 @@
     return {...root.ScaffoldModel.fromMembers(records, issues), products};
   }
 
-  root.ScaffoldACT = Object.freeze({build, planRails, planUpperStack, LIMIT, MAX_UPPER_JACK_EXTENSION, MIN_UPPER_JACK_EXTENSION});
+  root.ScaffoldACT = Object.freeze({build, planRails, LIMIT, MAX_UPPER_JACK_EXTENSION, MIN_UPPER_JACK_EXTENSION});
 })(typeof window === 'undefined' ? globalThis : window);
   </script>
   <script>
@@ -791,8 +772,18 @@
                   // Use the chosen first frame, then the existing extension parts.
                   const remaining = heights[i01][xg] - baseHeight - socketHeight - frame.size;
                   const room = remaining * 1000;
-                  const plan = globalThis.ScaffoldACT.planUpperStack(room, mainSize);
-                  if (!plan) invalid('所選桿件無法讓上調整座保持至少 15 cm 且小於 35 cm。請調整支撐高度、下調整座高度或主架尺寸。', 'v60h');
+                  let plan;
+                  for (let short = 0; short <= 2; short++) {
+                    for (const sleeve of [0, 250, 500, 750]) {
+                      const tall = Math.floor((room - short * 1000 - sleeve - minUpperJack * 1000 + 1e-4) / mainSize);
+                      const adjustment = room - tall * mainSize - short * 1000 - sleeve;
+                      if (tall >= 0 && adjustment >= minUpperJack * 1000 - 1e-4 && adjustment <= maxUpperJack * 1000 + 1e-4 &&
+                          (!plan || tall > plan.tall || (tall === plan.tall && adjustment < plan.adjustment))) {
+                        plan = {tall, short, sleeve, adjustment};
+                      }
+                    }
+                  }
+                  if (!plan) invalid('所選主架與接續桿件無法配合部分支撐高度，並將上調整座伸出量控制在 15–40 cm。請調整高度或改選主架。', 'v60h');
                   quantities[frameIndex]++;
                   v61150Grid[i01][xg] = plan.tall;
                   v61100Grid[i01][xg] = plan.short;
@@ -977,25 +968,21 @@
         }
         const extension = heights[x][y] - baseHeight - socketHeight - stackBelowSleeves(x, y) -
           v62025Grid[x][y] * 0.25 - v62050Grid[x][y] * 0.5;
-        if (extension >= maxUpperJack - 1e-7 || extension < minUpperJack - 1e-7) {
-          const firstFrame = (frame?.size ?? 0) + v60100Grid[x][y] + v60150Grid[x][y] * 1.5 + v60300Grid[x][y] * 3;
-          const room = (heights[x][y] - baseHeight - socketHeight - firstFrame) * 1000;
-          let plan = globalThis.ScaffoldACT.planUpperStack(room, frame ? mainSize : 1500);
-          // 舊規則採用 100 cm 平主架時，也可用 150 cm 取代 100＋25 cm。
-          if (!frame && v60100Grid[x][y] === 1 && v60150Grid[x][y] === 0 && v60300Grid[x][y] === 0) {
-            const largerFramePlan = globalThis.ScaffoldACT.planUpperStack(room - 500, 1500);
-            if (largerFramePlan && (!plan || largerFramePlan.sleeveCount < plan.sleeveCount ||
-                (largerFramePlan.sleeveCount === plan.sleeveCount && largerFramePlan.count < plan.count))) {
-              plan = largerFramePlan;
-              v60100Grid[x][y] = 0;
-              v60150Grid[x][y] = 1;
-            }
-          }
-          if (!plan) invalid('支撐點（' + x + ', ' + y + '）無法讓上調整座保持至少 15 cm 且小於 35 cm。增加 25 cm 桿件會低於下限時，請調整支撐高度、下調整座高度或主架尺寸。', 'v60h');
-          v61150Grid[x][y] = plan.tall;
-          v61100Grid[x][y] = plan.short;
-          v62025Grid[x][y] = Number(plan.sleeve % 500 === 250);
-          v62050Grid[x][y] = Number(plan.sleeve >= 500);
+        const extra = Math.max(0, Math.ceil((extension - maxUpperJack - 1e-7) / 0.25));
+        v62025Grid[x][y] += extra;
+        // 過短時減少 25 cm 補高，將空間留給上調整座。
+        let adjustedExtension = extension - extra * 0.25;
+        while (adjustedExtension < minUpperJack - 1e-7 && (v62025Grid[x][y] > 0 || v62050Grid[x][y] > 0)) {
+          if (v62025Grid[x][y] > 0) v62025Grid[x][y]--;
+          else { v62050Grid[x][y]--; v62025Grid[x][y]++; }
+          adjustedExtension += 0.25;
+        }
+        if (adjustedExtension < minUpperJack - 1e-7 || adjustedExtension > maxUpperJack + 1e-7) {
+          invalid('部分支撐點無法將上調整座伸出量配置在 15–40 cm，請調整高度或改選主架。', 'v60h');
+        }
+        if (v62025Grid[x][y] === 3) {
+          v62025Grid[x][y] = 1;
+          v62050Grid[x][y]++;
         }
       }
     }
