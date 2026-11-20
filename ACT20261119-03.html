@@ -358,6 +358,18 @@
       return {regularCount, tail};
     }
 
+    // 50 cm 輔助桿鄰側較高時，兩個方向都在其圓盤接橫桿。
+    // 反向安裝的圓盤位於桿頂下方 10 cm，不要求兩端補高起點相同。
+    for (const [aux, otherTop] of [[frontAux, rearTop], [rearAux, frontTop]]) {
+      if (aux?.short === 0 && aux.long === 1 && otherTop > aux.start + 0.5 + tolerance) {
+        const diskLevel = aux.start + 0.4;
+        const plan = atConnection(diskLevel);
+        const lastRail = bottom + (plan.regularCount - 1) * 1.5 + plan.tail;
+        if (diskLevel > lastRail + tolerance) plan.extraLevels = [diskLevel];
+        return plan;
+      }
+    }
+
     if (continuesAsMain(frontAux, rearAux, rearTop)) return atConnection(frontAux.start + 0.5);
     if (continuesAsMain(rearAux, frontAux, frontTop)) return atConnection(rearAux.start + 0.5);
 
@@ -482,7 +494,7 @@
           const isTail = n === regularCount;
           const isExtra = n >= standardCount;
           const height = isExtra ? extraLevels[n - standardCount] : bottom + (isTail ? (regularCount - 1) * 1.5 + tail : n * 1.5);
-          const note = isExtra ? '連接 25 cm 輔助桿圓盤。' : n === 0 ? '下調整座頂端上方 10 cm。' :
+          const note = isExtra ? '連接輔助桿圓盤。' : n === 0 ? '下調整座頂端上方 10 cm。' :
             '與下方橫桿相距 ' + (isTail ? Number((tail * 100).toFixed(6)) : 150) + ' cm。';
           add(index, [xs[i], ys[j], height], [xs[k], ys[l], height], note);
         }

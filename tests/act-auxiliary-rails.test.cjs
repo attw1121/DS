@@ -68,3 +68,37 @@ test('3D rejects a stored result with an upper jack below 15 cm', () => {
     xGaps: [0, 1.5, 0], yGaps: [0, 1.5, 0], heights: [[], [0, 1.14]], base: 0.2,
     supports: [{i: 1, j: 1, parts: [[0, 1], [8, 1]]}], links: [], truncated: false}), /15 cm/);
 });
+
+test('50 cm auxiliary connects to a taller neighbor in both directions at its disk', () => {
+  const aux = {start: 4.4, short: 0, long: 1};
+  const levels = plan => [
+    ...Array.from({length: plan.regularCount}, (_, n) => 0.3 + n * 1.5),
+    ...(plan.tail ? [0.3 + (plan.regularCount - 1) * 1.5 + plan.tail] : []),
+    ...(plan.extraLevels || [])
+  ];
+  for (const [height, neighbor] of [[5.15, {start: 4.4, short: 1, long: 1}], [5.4, null], [5.65, {start: 5.4, short: 1, long: 0}]]) {
+    const forward = levels(context.ScaffoldACT.planRails(0.2, 4.9, height, aux, neighbor));
+    const reverse = levels(context.ScaffoldACT.planRails(0.2, height, 4.9, neighbor, aux));
+    assert.deepEqual(forward, reverse);
+    assert.equal(forward.filter(z => Math.abs(z - 4.8) < 1e-7).length, 1);
+    assert.ok(forward.every(z => z <= 4.8 + 1e-7));
+  }
+  const lower = levels(context.ScaffoldACT.planRails(0.2, 4.9, 4.65, aux, {start: 4.4, short: 1, long: 0}));
+  assert.ok(lower.every(z => z <= 4.65 + 1e-7));
+});
+
+test('sloped 50 cm auxiliary connections appear in 3D and material counts', () => {
+  for (const corners of [[5.2, 5.7, 5.2, 5.7], [5.7, 5.2, 5.7, 5.2], [5.2, 5.2, 5.7, 5.7], [5.7, 5.7, 5.2, 5.2]]) {
+    const [h1,h2,h3,h4] = corners;
+    const result = context.calculate({spacingX: 1.5, spacingY: 1.5, lengthX: 3, lengthY: 3,
+      h1,h2,h3,h4,baseHeight: 0.2,frameHeight: 3,xGaps:[1.5],yGaps:[1.5],xBraces:null,yBraces:null});
+    const model = context.ScaffoldACT.build(result.geometry);
+    const auxiliaries = model.members.filter(m => m.code === 'V62050');
+    assert.ok(auxiliaries.length > 0);
+    for (const aux of auxiliaries) {
+      const disk = [aux.start[0], aux.start[1], aux.end[2] - 0.1];
+      assert.ok(model.members.some(m => m.code.startsWith('H66') && [m.start,m.end].some(p => p.every((v,i) => Math.abs(v-disk[i]) < 1e-7))));
+    }
+    result.geometry.catalog.forEach((part,i) => assert.equal(model.members.filter(m => m.code === part.code).length,result.quantities[i]));
+  }
+});
