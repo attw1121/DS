@@ -69,8 +69,9 @@ test('3D rejects a stored result with an upper jack below 15 cm', () => {
     supports: [{i: 1, j: 1, parts: [[0, 1], [8, 1]]}], links: [], truncated: false}), /15 cm/);
 });
 
-test('50 cm auxiliary connects to a taller neighbor in both directions at its disk', () => {
-  const aux = {start: 4.4, short: 0, long: 1};
+for (const combination of [{short: 0, long: 1}, {short: 2, long: 0}]) {
+test(`${combination.short ? '25+25' : '50'} cm auxiliary connects to a taller neighbor in both directions at its disk`, () => {
+  const aux = {start: 4.4, ...combination};
   const levels = plan => [
     ...Array.from({length: plan.regularCount}, (_, n) => 0.3 + n * 1.5),
     ...(plan.tail ? [0.3 + (plan.regularCount - 1) * 1.5 + plan.tail] : []),
@@ -86,6 +87,7 @@ test('50 cm auxiliary connects to a taller neighbor in both directions at its di
   const lower = levels(context.ScaffoldACT.planRails(0.2, 4.9, 4.65, aux, {start: 4.4, short: 1, long: 0}));
   assert.ok(lower.every(z => z <= 4.65 + 1e-7));
 });
+}
 
 test('sloped 50 cm auxiliary connections appear in 3D and material counts', () => {
   for (const corners of [[5.2, 5.7, 5.2, 5.7], [5.7, 5.2, 5.7, 5.2], [5.2, 5.2, 5.7, 5.7], [5.7, 5.7, 5.2, 5.2]]) {

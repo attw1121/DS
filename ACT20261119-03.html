@@ -358,10 +358,11 @@
       return {regularCount, tail};
     }
 
-    // 50 cm 輔助桿鄰側較高時，兩個方向都在其圓盤接橫桿。
+    // 50 cm 或 25＋25 cm 輔助桿鄰側較高時，兩個方向都在上方圓盤接橫桿。
     // 反向安裝的圓盤位於桿頂下方 10 cm，不要求兩端補高起點相同。
     for (const [aux, otherTop] of [[frontAux, rearTop], [rearAux, frontTop]]) {
-      if (aux?.short === 0 && aux.long === 1 && otherTop > aux.start + 0.5 + tolerance) {
+      const is50cm = aux && ((aux.short === 0 && aux.long === 1) || (aux.short === 2 && aux.long === 0));
+      if (is50cm && otherTop > aux.start + 0.5 + tolerance) {
         const diskLevel = aux.start + 0.4;
         const plan = atConnection(diskLevel);
         const lastRail = bottom + (plan.regularCount - 1) * 1.5 + plan.tail;
