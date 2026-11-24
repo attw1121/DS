@@ -67,6 +67,13 @@ main{position:relative;background:var(--view);min-height:0}
 .info td{padding:4px 10px;vertical-align:top}
 .info td:first-child{color:var(--muted);white-space:nowrap;width:1%}
 .info td:last-child{text-align:left}
+.armtbl{overflow-x:auto}
+#qtyArm th,#qtyArm td{padding:4px 5px;border-bottom:1px solid var(--line);font-size:12.5px;white-space:nowrap}
+#qtyArm th{color:var(--muted);font-weight:600;text-align:right}
+#qtyArm th:first-child,#qtyArm td:first-child{text-align:left;white-space:normal;min-width:120px}
+#qtyArm td{text-align:right}
+#qtyArm td:last-child,#qtyArm th:last-child{font-weight:700}
+#qtyArm tr.sec td{background:var(--field);color:var(--muted);font-weight:700;text-align:left}
 .gdlg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:grid;place-items:center;z-index:50;padding:16px}
 .gdlg[hidden]{display:none}
 .gbox{background:var(--panel);color:var(--ink);border-radius:12px;width:min(460px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.3)}
@@ -188,6 +195,9 @@ main{position:relative;background:var(--view);min-height:0}
   <table id="qtyS"></table>
   <h2>支撐架構件數量（4 梁臂合計）</h2>
   <table id="qtyC"></table>
+  <h2>各大梁（腳）桿件、材料數量</h2>
+  <div class="armtbl"><table id="qtyArm"></table></div>
+  <div class="btns"><button id="armCsv">匯出 CSV</button></div>
   <div class="sub" style="margin-top:6px">僅計大梁底模（不含側模）；設置作業平台時，模板、角材與型鋼延伸至平台外緣。合板以 3'×6'（910×1820）計片數，未含損耗。</div>
 </aside>
 <main>
@@ -662,7 +672,10 @@ function layout(g){
   const lift=+P.z5;
   // 橫桿：自兩主架共有之最低圓盤（掃地桿）起以 1.5m 為單位；末端不足 1.5m 但達 1.0m 於 1.0m 圓盤；輔助桿組合頂端圓盤另拉一支
   const levels=(L0,T)=>{const L=[];let y=L0;L.push(y);while(y+lift<=T+1){y+=lift;L.push(y);}if(T-y>=999)L.push(y+1000);return L;};
-  const cnt={},cntT={},add=(key,m,type)=>{cnt[key]=(cnt[key]||0)+m;cntT[type]=(cntT[type]||0)+m;};
+  // 數量統計：全部（cnt）與目前處理中之單一腳（cur.cnt）同步累計
+  let cur=null;
+  const cnt={},cntT={},add=(key,m,type)=>{cnt[key]=(cnt[key]||0)+m;cntT[type]=(cntT[type]||0)+m;
+    if(cur){cur.cnt[key]=(cur.cnt[key]||0)+m;cur.cntT[type]=(cur.cntT[type]||0)+m;}};
   const uName=Math.abs(g.ang)>1e-4?'U63601S U型活動調整座':'U63601 上調整座';
   const ledName=L=>`H66${String(L/10).padStart(3,'0')} 橫桿 ${(L/1000).toFixed(1)}m`;
   const diagName=bay=>`D6${String(bay/100).padStart(2,'0')}15 斜桿 ${(bay/1000).toFixed(1)}×1.5m`;
@@ -670,7 +683,7 @@ function layout(g){
   const actPick=m=>{const s=new Set();for(let q=1;q<=Math.floor((m+2)/2);q++){const e=2*q;s.add((e>m+1?e-1:e)-2);}return s;}; // ACT：第 1、3、5…跨＋末跨（0 起算）
   const arms={};
   for(const a of ['a','b','c','d']){
-    const cols=armCols[a];
+    const cols=armCols[a];cur={cnt:{},cntT:{}};
     if(!cols.aligned)warn.push(`${a} 腳地面高差使下調整座（80～450 mm）無法讓各主架圓盤同高，橫桿可能無法水平拉設，請調整地面線。`);
     for(const col of cols){add('J63601 下調整座',k,'jack');add('V62020 標準基座',k,'sock');add(uName,k,'uh');for(const pc of col.pieces)add(pc.name,k,pc.type);}
     const bays=[],bayMap={},units=[];
@@ -713,7 +726,7 @@ function layout(g){
         bay.diag.push({y0:lo,y1:hi,drop});add(diagName(bay.len),1,'dia');
       }
     }
-    arms[a]={cols,bays,units};
+    arms[a]={cols,bays,units,cnt:cur.cnt,cntT:cur.cntT};cur=null;
   }
   const armLoad=sel.legP.flat().reduce((s,v)=>s+v,0);
   const conc=P.z3*g.w*g.ext*(g.d3+g.d4)/2/1e9, areaArm=g.w*g.ext/1e6;
@@ -757,11 +770,51 @@ function shoreQty(g,L){
   const keys=Object.keys(L.cnt).sort();
   $('qtyC').innerHTML=keys.map(k=>`<tr><td>${k}</td><td>${fmt(L.cnt[k])} 支</td></tr>`).join('');
 }
+// ---------- 各大梁（腳）桿件、材料數量 ----------
+let ARM_ROWS=[];
+function armQty(g){
+  const L=LAY,tb=$('qtyArm');
+  if(!L||!L.ok){tb.innerHTML='';ARM_ROWS=[];return;}
+  const A=['a','b','c','d'],H=curH(),W=g.w+2*PWS,lenS=L.len*L.sf,SAI=0.0303*0.0303*3.03;
+  const rows=[];const sec=t=>rows.push({sec:t});
+  const row=(name,unit,vals,dp)=>rows.push({name,unit,vals,tot:vals.reduce((s,v)=>s+v,0),dp:dp||0});
+  // 支撐架桿件（依品項順序：下調整座→標準基座→平主架→主架→輔助桿→上調整座→橫桿→斜桿）
+  const order=['jack','sock','flat','std','sub','uh','led','dia'];
+  const keys=Object.keys(L.cnt);
+  const PFX=[['jack','J'],['sock','V62020'],['flat','V60'],['std','V61'],['sub','V6202'],['uh','U'],['led','H66'],['dia','D6']];
+  const typeOf=k=>(PFX.find(([,p])=>k.startsWith(p))||['zz'])[0];
+  keys.sort((x,y)=>order.indexOf(typeOf(x))-order.indexOf(typeOf(y))||x.localeCompare(y));
+  sec('支撐架桿件');
+  for(const k of keys)row(k,'支',A.map(a=>L.arms[a].cnt[k]||0));
+  row('<b>桿件合計</b>','支',A.map(a=>Object.values(L.arms[a].cnt).reduce((s,v)=>s+v,0)));
+  sec('主架配置');
+  row('主架支數（排 × 列）','支',A.map(()=>L.k*L.n));
+  row('最大垂直荷載／支','tf',A.map(()=>L.Pmax),3);
+  row('地面高程（最低）','mm',A.map(a=>Math.min(...L.arms[a].cols.map(c=>c.gz))));
+  row('地面高程（最高）','mm',A.map(a=>Math.max(...L.arms[a].cols.map(c=>c.gz))));
+  sec('梁底模板材料');
+  const area=W*lenS/1e6;
+  row(`模板面積（t=${fmt(P.f1)}）`,'m²',A.map(()=>area),2);
+  row("合板片數（3'×6'）",'片',A.map(()=>Math.ceil(area/(0.91*1.82))));
+  row(`木角材 ${fmt(P.f3)}×${fmt(P.f2)} @${fmt(L.joistPitch)}`,'支',A.map(()=>L.joistN));
+  row('木角材總長','m',A.map(()=>L.joistN*W/1000),1);
+  row('木角材材積','才',A.map(()=>L.joistN*W/1000*P.f2*P.f3/1e6/SAI),0);
+  row(`型鋼 ${H.n}×${H.tw}×${H.tf}（${(lenS/1000).toFixed(2)} m）`,'支',A.map(()=>L.k));
+  row('型鋼總重','t',A.map(()=>L.k*lenS/1000*H.kg/1000),2);
+  sec('混凝土（大梁，梁臂外伸段）');
+  row('混凝土量','m³',A.map(()=>g.w*g.ext*(g.d3+g.d4)/2/1e9),2);
+  row('梁臂總載重（支撐架承受）','tf',A.map(()=>L.armLoad),2);
+  ARM_ROWS=rows;
+  const f=(v,dp)=>dp?v.toLocaleString('en-US',{minimumFractionDigits:dp,maximumFractionDigits:dp}):fmt(v);
+  tb.innerHTML=`<thead><tr><th>品項</th><th>單位</th>${A.map(a=>`<th><span class="gtag" style="width:20px;height:20px;font-size:12px">${a}</span></th>`).join('')}<th>合計</th></tr></thead><tbody>`+
+    rows.map(r=>r.sec?`<tr class="sec"><td colspan="7">${r.sec}</td></tr>`:
+      `<tr><td>${r.name}</td><td style="text-align:center;color:var(--muted)">${r.unit}</td>${r.vals.map(v=>`<td>${f(v,r.dp)}</td>`).join('')}<td>${/荷載|高程/.test(r.name)?'—':f(r.tot,r.dp)}</td></tr>`).join('')+'</tbody>';
+}
 function formQty(g){
   const H=curH(),t=P.f1,L=LAY;
   if(!L.ok){$('qtyF').innerHTML='';$('hinfo').textContent='';return;}
   const W=g.w+2*PWS, lenS=L.len*L.sf;                                  // 含兩側平台之模板寬、沿斜長（含梁端平台）
-  const aTot=4*W*lenS/1e6, sheets=Math.ceil(aTot/(0.91*1.82));
+  const aTot=4*W*lenS/1e6, sheets=4*Math.ceil(aTot/4/(0.91*1.82));   // 各腳分別裁切計片，合計＝單腳 × 4
   const jN=4*L.joistN, jL1=W/1000, jLen=jN*jL1, jVol=jLen*P.f2*P.f3/1e6, SAI=0.0303*0.0303*3.03;
   const hLen1=lenS/1000, hN=4*L.k, hLen=hLen1*hN, hKg=hLen*H.kg;
   const r=[
@@ -1133,7 +1186,7 @@ function update(){
   LAY=layout(g);
   validate(g);
   if(LAY.warn.length){const w=$('warn');w.innerHTML+=(w.innerHTML?'<br>':'')+[...new Set(LAY.warn)].join('<br>');}
-  drawPlan(g);drawSect(g,'sectAC','a','c');drawSect(g,'sectBD','b','d');drawForm(g);quantities(g);formQty(g);shoreQty(g,LAY);build3D(g);
+  drawPlan(g);drawSect(g,'sectAC','a','c');drawSect(g,'sectBD','b','d');drawForm(g);quantities(g);formQty(g);shoreQty(g,LAY);armQty(g);build3D(g);
   try{localStorage.setItem(STORE,JSON.stringify({...P,hsel:HSEL,ground:GROUND}));}catch(e){}
   // legend: colour → item, with quantity for all 4 arms
   let lg='';
@@ -1153,6 +1206,18 @@ function update(){
 }
 for(const id of ['tDims','tClip','tGhost','tForm','tShore'])$(id).addEventListener('change',update);
 $('fit').onclick=fitView;
+// 各腳數量匯出 CSV（UTF-8 BOM，Excel 可直接開啟中文）
+$('armCsv').onclick=()=>{
+  if(!ARM_ROWS.length)return;
+  const q=s=>'"'+String(s).replace(/<[^>]+>/g,'').replace(/"/g,'""')+'"';
+  const lines=[['類別','品項','單位','a 腳','b 腳','c 腳','d 腳','合計'].map(q).join(',')];
+  let sec='';
+  for(const r of ARM_ROWS){if(r.sec){sec=r.sec;continue;}
+    const n=v=>r.dp?v.toFixed(r.dp):String(Math.round(v));
+    lines.push([q(sec),q(r.name),q(r.unit),...r.vals.map(n),/荷載|高程/.test(r.name)?'':n(r.tot)].join(','));}
+  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Towerfoundation_各腳數量.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+};
 // ---------- 地面高程編輯（點選剖面圖地面線開啟）----------
 let gArm='a',gDraft=[];
 function gRender(){
