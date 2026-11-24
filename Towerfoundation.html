@@ -1,0 +1,1246 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>井桶十字梁模型</title>
+<style>
+:root{
+  --bg:#f4f5f7;--panel:#ffffff;--ink:#1d2330;--muted:#667085;--line:#d6dae1;
+  --accent:#c2410c;--accent2:#1d4ed8;--warn:#b42318;--warnbg:#fef3f2;
+  --field:#f9fafb;--draw:#1d2330;--drawfaint:#98a2b3;--view:#e9edf2;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12151b;--panel:#1a1f28;--ink:#e6e9ef;--muted:#98a2b3;--line:#2c3441;
+  --accent:#fb923c;--accent2:#60a5fa;--warn:#f97066;--warnbg:#3a1a17;
+  --field:#11151c;--draw:#e6e9ef;--drawfaint:#667085;--view:#161b23;}}
+:root[data-theme="dark"]{
+  --bg:#12151b;--panel:#1a1f28;--ink:#e6e9ef;--muted:#98a2b3;--line:#2c3441;
+  --accent:#fb923c;--accent2:#60a5fa;--warn:#f97066;--warnbg:#3a1a17;
+  --field:#11151c;--draw:#e6e9ef;--drawfaint:#667085;--view:#161b23;}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 "Microsoft JhengHei","PingFang TC","Noto Sans TC",system-ui,sans-serif}
+.app{display:grid;grid-template-columns:400px 1fr;height:100vh}
+aside{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:16px}
+h1{font-size:17px;margin:0 0 2px}
+.sub{color:var(--muted);font-size:12px;margin-bottom:12px}
+h2{font-size:13px;margin:18px 0 8px;color:var(--muted);font-weight:600;letter-spacing:.04em}
+.row{display:grid;grid-template-columns:26px 1fr 108px;align-items:center;gap:8px;padding:4px 0}
+.num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--accent);color:var(--accent);font-size:12px;font-weight:700}
+.row label{font-size:13.5px}
+.num.sq{border-radius:5px;font-size:11px;border-color:var(--accent2);color:var(--accent2)}
+.row select{width:100%;padding:6px 4px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--ink);font:inherit;font-size:13px}
+.row input{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--ink);font:inherit;text-align:right}
+.row input:focus{outline:2px solid var(--accent2);outline-offset:-1px}
+.row .out{text-align:right;padding:6px 8px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+.row .formula{grid-column:2/4;color:var(--muted);font-size:12px;margin-top:-4px}
+.unit{color:var(--muted);font-size:11px;font-weight:400}
+.warn{background:var(--warnbg);color:var(--warn);border-radius:6px;padding:8px 10px;font-size:12.5px;margin-top:8px}
+.warn:empty{display:none}
+details{margin-top:6px;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+summary{cursor:pointer;font-size:13px;color:var(--muted)}
+details .row{grid-template-columns:1fr 108px}
+.svgbox{border:1px solid var(--line);border-radius:8px;background:var(--field);margin-bottom:8px;padding:4px}
+.svgbox .cap{font-size:12px;color:var(--muted);padding:2px 6px}
+svg{display:block;width:100%;height:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+td{padding:4px 2px;border-bottom:1px solid var(--line)}
+td:last-child{text-align:right}
+tr.total td{font-weight:700;border-bottom:none}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+button{font:inherit;font-size:13px;padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:var(--field);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent2)}
+main{position:relative;background:var(--view);min-height:0}
+#view{position:absolute;inset:0}
+#labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lbl{position:absolute;transform:translate(-50%,-50%);background:var(--panel);color:var(--ink);border:1px solid var(--accent);border-radius:10px;padding:1px 7px;font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.lbl.lblArm{background:var(--accent);color:#fff;border:2px solid #fff;border-radius:50%;width:28px;height:28px;padding:0;display:grid;place-items:center;font:700 16px sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.lbl b{color:var(--accent);margin-right:3px}
+.toolbar{position:absolute;top:10px;right:10px;display:flex;gap:6px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px}
+.toolbar label{display:flex;align-items:center;gap:4px;cursor:pointer}
+.info{position:absolute;width:330px;max-width:calc(100% - 20px);background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);font-size:12.5px;z-index:5}
+.info .hd{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line);font-weight:700;font-size:13.5px}
+.info .hd i{width:12px;height:12px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.25)}
+.info .hd button{margin-left:auto;padding:0 7px;font-size:14px;line-height:20px}
+.info table{font-size:12.5px}
+.info td{padding:4px 10px;vertical-align:top}
+.info td:first-child{color:var(--muted);white-space:nowrap;width:1%}
+.info td:last-child{text-align:left}
+.gdlg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:grid;place-items:center;z-index:50;padding:16px}
+.gdlg[hidden]{display:none}
+.gbox{background:var(--panel);color:var(--ink);border-radius:12px;width:min(460px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.ghd{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);font-size:15px}
+.ghd button{margin-left:auto;padding:0 8px;font-size:16px}
+.gtag{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700}
+.gbody{padding:12px 14px;overflow:auto}
+.gnote{color:var(--muted);font-size:12px;margin:0 0 10px}
+.grow{display:grid;grid-template-columns:1fr 100px auto;gap:8px;align-items:center;font-size:13px;margin-bottom:4px}
+.grow input,.gtbl input{width:100%;padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--ink);font:inherit;text-align:right}
+.gtbl{margin:6px 0}
+.gtbl th{font-size:12px;color:var(--muted);font-weight:600;text-align:left;padding:4px 2px}
+.gtbl td{border:none;padding:3px 2px}
+.gtbl td:last-child{width:36px;text-align:center}
+.gft{display:flex;justify-content:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--line)}
+.gprimary{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+.legend{position:absolute;left:10px;bottom:30px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;line-height:1.7;max-width:calc(100% - 20px)}
+.legend:empty{display:none}
+.legend .t{font-weight:700;color:var(--muted);font-size:11px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:6px;border:1px solid rgba(0,0,0,.25)}
+.legend span.c{color:var(--muted);margin-left:6px;font-variant-numeric:tabular-nums}
+.hint{position:absolute;left:10px;bottom:8px;color:var(--muted);font-size:12px}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr;height:auto}
+  aside{border-right:none;border-bottom:1px solid var(--line)}
+  main{height:70vh}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <h1>井桶十字梁 參數化模型</h1>
+  <div class="sub">依「範例圖.dxf」標號輸入尺寸（單位 mm），圖示、數量與 3D 模型即時連動。</div>
+
+  <h2>輸入尺寸</h2>
+  <div class="row"><span class="num">1</span><label for="p1">井桶直徑φ</label><input id="p1" type="number" min="1" step="50"></div>
+  <div class="row"><span class="num">2</span><label for="p2">梁突出井桶長度</label><input id="p2" type="number" min="1" step="25"></div>
+  <div class="row"><span class="num">3</span><label for="p3">梁內緣深</label><input id="p3" type="number" min="1" step="50"></div>
+  <div class="row"><span class="num">4</span><label for="p4">梁外緣深</label><input id="p4" type="number" min="1" step="50"></div>
+  <div class="row"><span class="num">5</span><label for="p5">梁寬</label><input id="p5" type="number" min="1" step="50"></div>
+  <div class="row"><span class="num">6</span><label for="p6">梁內緣距地面高度</label><input id="p6" type="number" min="0" step="100"></div>
+  <div class="row"><span class="num">7</span><label>梁全長</label><div class="out" id="p7"></div>
+    <div class="formula">自動計算 = ① + ② × 2</div></div>
+
+  <details>
+    <summary>其他尺寸（圖面未標號，依範例圖預設）</summary>
+    <div class="row"><label for="q1">塔腳墩座 底長</label><input id="q1" type="number" min="0" step="50"></div>
+    <div class="row"><label for="q2">塔腳墩座 頂長</label><input id="q2" type="number" min="0" step="50"></div>
+    <div class="row"><label for="q3">塔腳墩座 寬</label><input id="q3" type="number" min="0" step="50"></div>
+    <div class="row"><label for="q4">塔腳墩座 高</label><input id="q4" type="number" min="0" step="50"></div>
+    <div class="row"><label for="q5">墩座外緣距梁端</label><input id="q5" type="number" min="0" step="10"></div>
+    <div class="row"><label for="q6">顯示地下井桶深度</label><input id="q6" type="number" min="0" step="500"></div>
+  </details>
+  <h2>模板材料</h2>
+  <div class="row"><span class="num sq">模</span><label for="f1">模板厚度</label><input id="f1" type="number" min="1" step="1" list="plyList"></div>
+  <datalist id="plyList"><option value="12"><option value="15"><option value="18"><option value="21"></datalist>
+  <div class="row"><span class="num sq">角</span><label for="f2">角材尺寸－高</label><input id="f2" type="number" min="1" step="5" list="timList"></div>
+  <div class="row"><span class="num sq">角</span><label for="f3">角材尺寸－寬</label><input id="f3" type="number" min="1" step="5" list="timList"></div>
+  <datalist id="timList"><option value="45"><option value="60"><option value="90"><option value="100"></datalist>
+  <div class="row"><span class="num sq">鋼</span><label for="hsel">型鋼尺寸</label><select id="hsel"></select></div>
+  <div class="formula" id="hinfo" style="margin:-2px 0 4px 34px;color:var(--muted);font-size:12px"></div>
+  <details>
+    <summary>模板配置參數</summary>
+    <div class="row"><label for="woodB">模板樹種</label><select id="woodB"></select></div>
+    <div class="row"><label for="z17">模板容許彎應力 Fb <span class="unit">kgf/cm²</span></label><input id="z17" type="number" min="1" step="0.5"></div>
+    <div class="row"><label for="z18">模板容許剪應力 Fv <span class="unit">kgf/cm²</span></label><input id="z18" type="number" min="0.1" step="0.1"></div>
+    <div class="row"><label for="z19">模板彈性係數 E <span class="unit">kgf/cm²</span></label><input id="z19" type="number" min="1000" step="1000"></div>
+    <div class="row"><label for="woodT">角材樹種</label><select id="woodT"></select></div>
+    <div class="formula" style="color:var(--muted);font-size:12px">角材間距、型鋼支數與長度依強度自動配置（含所設定之作業平台）</div>
+  </details>
+
+  <h2>支撐架（圓盤式 Φ60.2，構件依 DTL.dxf）</h2>
+  <div class="row"><span class="num sq">試</span><label for="z1">載重試驗值 <span class="unit">tf／1座4支腳</span></label><input id="z1" type="number" min="0.1" step="0.01"></div>
+  <div class="row"><span class="num sq">安</span><label for="z2">安全係數</label><input id="z2" type="number" min="1" step="0.1"></div>
+  <div class="row"><span class="num sq">層</span><label for="z5">橫桿層距</label><select id="z5"><option value="1000">1000</option><option value="1500">1500</option></select></div>
+  <div class="row"><span class="num sq">斜</span><label for="z9">斜桿配置（每座 4 支腳）</label><select id="z9"><option value="3">依 ACT 程式（第 1、3、5…跨＋末跨，每排皆拉）</option><option value="2">依範例圖（sucoot）</option><option value="1">跳座拉</option><option value="0">每座拉</option></select></div>
+  <div class="formula" id="pinfo" style="margin:-2px 0 4px 34px;color:var(--muted);font-size:12px"></div>
+  <div class="row"><span class="num sq">D</span><label for="z3">混凝土單位重 (D/L) <span class="unit">tf/m³</span></label><input id="z3" type="number" min="0" step="0.05"></div>
+  <div class="row"><span class="num sq">I</span><label for="z4">澆注衝擊載重 <span class="unit">tf/m²</span></label><input id="z4" type="number" min="0" step="0.05"></div>
+  <div class="row"><span class="num sq">L</span><label for="z8">人員機具模板重 (L/L) <span class="unit">tf/m²</span></label><input id="z8" type="number" min="0" step="0.05"></div>
+  <div class="row"><span class="num sq">台</span><label for="z21">大梁兩側作業平台</label><select id="z21"><option value="1">設置</option><option value="0">不設置</option></select></div>
+  <div class="row"><span class="num sq">台</span><label for="z23">梁端作業平台</label><select id="z23"><option value="1">設置</option><option value="0">不設置</option></select></div>
+  <div class="row"><span class="num sq">台</span><label for="z22">平台延伸寬度</label><select id="z22"><option value="600">600</option><option value="900">900</option><option value="1200">1200</option><option value="1500">1500</option><option value="1800">1800</option><option value="2400">2400</option></select></div>
+  <div class="formula" style="margin:-2px 0 4px 34px;color:var(--muted);font-size:12px">延伸寬度採制式橫桿跨距（mm），兩側與梁端共用</div>
+  <div class="row"><span class="num sq">台</span><label for="z20">平台面載重 <span class="unit">tf/m²</span></label><input id="z20" type="number" min="0" step="0.05"></div>
+  <details>
+    <summary>支撐架設計參數</summary>
+    <div class="row"><label for="z6">下調整座伸出量</label><input id="z6" type="number" min="50" max="500" step="10"></div>
+    <div class="row"><label for="z10">上調整座最低伸出量</label><input id="z10" type="number" min="0" step="10"></div>
+    <div class="row"><label for="z11">上調整座最高伸出量</label><input id="z11" type="number" min="0" step="10"></div>
+    <div class="row"><label for="z7">型鋼容許彎應力 <span class="unit">t/cm²</span></label><input id="z7" type="number" min="0.1" step="0.1"></div>
+    <div class="row"><label for="z15">型鋼容許剪應力 <span class="unit">t/cm²</span></label><input id="z15" type="number" min="0.1" step="0.01"></div>
+    <div class="row"><label for="z12">角材容許彎應力 <span class="unit">kgf/cm²</span></label><input id="z12" type="number" min="1" step="5"></div>
+    <div class="row"><label for="z13">角材容許剪應力 <span class="unit">kgf/cm²</span></label><input id="z13" type="number" min="0.1" step="0.5"></div>
+    <div class="row"><label for="z14">角材彈性模數 <span class="unit">kgf/cm²</span></label><input id="z14" type="number" min="1000" step="5000"></div>
+    <div class="row"><label for="z16">撓度限制 L／</label><input id="z16" type="number" min="1" step="10"></div>
+  </details>
+
+  <div class="warn" id="warn"></div>
+  <div class="btns"><button id="recalc" style="border-color:var(--accent2);color:var(--accent2);font-weight:700">重新計算並配置支撐</button><button id="reset">重設為範例圖尺寸</button></div>
+  <div class="sub" id="lastRun" style="margin-top:6px"></div>
+
+  <h2>平面圖</h2>
+  <div class="svgbox"><svg id="plan"></svg></div>
+  <h2>剖面圖 a–c 腳</h2>
+  <div class="svgbox"><svg id="sectAC"></svg></div>
+  <h2>剖面圖 b–d 腳</h2>
+  <div class="svgbox"><svg id="sectBD"></svg></div>
+
+  <h2>梁底模板斷面詳圖</h2>
+  <div class="svgbox"><svg id="form"></svg></div>
+
+  <h2>相關數值</h2>
+  <table id="qty"></table>
+  <h2>模板材料數量</h2>
+  <table id="qtyF"></table>
+  <h2>支撐架自動配置</h2>
+  <table id="qtyS"></table>
+  <h2>支撐架構件數量（4 梁臂合計）</h2>
+  <table id="qtyC"></table>
+  <div class="sub" style="margin-top:6px">僅計大梁底模（不含側模）；設置作業平台時，模板、角材與型鋼延伸至平台外緣。合板以 3'×6'（910×1820）計片數，未含損耗。</div>
+</aside>
+<main>
+  <div id="view"></div>
+  <div id="labels"></div>
+  <div class="toolbar">
+    <label><input type="checkbox" id="tDims" checked>尺寸標註</label>
+    <label><input type="checkbox" id="tClip">剖切</label>
+    <label><input type="checkbox" id="tGhost" checked>地下井桶</label>
+    <label><input type="checkbox" id="tForm" checked>梁底模</label>
+    <label><input type="checkbox" id="tShore" checked>支撐架</label>
+    <button id="fit" style="padding:2px 8px">置中</button>
+  </div>
+  <div class="legend" id="legend"></div>
+  <div class="info" id="info" hidden></div>
+
+  <div class="hint">左鍵旋轉・右鍵平移・滾輪縮放</div>
+</main>
+</div>
+
+<div class="gdlg" id="gdlg" hidden>
+  <div class="gbox" role="dialog" aria-modal="true" aria-labelledby="gTitle">
+    <div class="ghd"><span class="gtag" id="gTag">a</span><b id="gTitle">地面高程調整</b><button id="gX" aria-label="關閉">×</button></div>
+    <div class="gbody">
+      <p class="gnote">原點＝該腳大梁中心線與井桶外緣交點之原地面（高程 0）。距離自原點沿大梁向外量測（mm），高程向上為正、向下為負；點與點之間線性內插，超出範圍取端點高程。</p>
+      <div class="grow"><label for="gClr">地面（原點）距梁內緣底高度</label><input id="gClr" type="number" step="10"><button id="gShift">垂直調整</button></div>
+      <p class="gnote" id="gClrNote"></p>
+      <table class="gtbl"><thead><tr><th>距原點（mm）</th><th>高程（±mm）</th><th></th></tr></thead><tbody id="gRows"></tbody></table>
+      <div class="btns"><button id="gAdd">＋ 新增點</button><button id="gFlat">設為平坦（0）</button><button id="gAll">套用至全部腳</button></div>
+    </div>
+    <div class="gft"><button id="gCancel">取消</button><button id="gOk" class="gprimary">套用並重新配置</button></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+// ---------- parameters ----------
+const DEF={p1:6000,p2:5725,p3:2300,p4:1900,p5:1700,p6:5000,q1:1600,q2:1000,q3:1000,q4:2000,q5:580,q6:3000,
+  f1:21,f2:150,f3:90,
+  z1:80.84,z2:2.5,z3:2.4,z4:0.2,z8:0.2,z5:1500,z6:200,z7:1.512,z9:3,z10:150,z11:400,
+  z12:75,z13:6,z14:70000,z15:1.008,z16:240,z17:75,z18:6,z19:70000,z20:0.2,z21:1,z22:900,z23:1};
+const LEGS=4; // 載重試驗值 = 1 座 4 支腳之整體強度
+const KEYS=Object.keys(DEF);
+// 常用 H 型鋼（CNS/JIS 標準斷面）：H×B×tw×tf (mm), 單位重 kg/m
+const HS=[
+  ['H100×100',100,100,6,8,17.2],['H125×125',125,125,6.5,9,23.8],['H150×75',150,75,5,7,14.0],
+  ['H150×150',150,150,7,10,31.5],['H175×175',175,175,7.5,11,40.4],['H200×100',200,100,5.5,8,21.3],
+  ['H200×200',200,200,8,12,49.9],['H250×125',250,125,6,9,29.6],['H250×250',250,250,9,14,72.4],
+  ['H300×150',300,150,6.5,9,36.7],['H300×300',300,300,10,15,94.0],['H350×175',350,175,7,11,49.6],
+  ['H400×200',400,200,8,13,66.0]
+].map(a=>({n:a[0],H:a[1],B:a[2],tw:a[3],tf:a[4],kg:a[5]}));
+const DEF_H='H200×100';
+const STORE='towerfoundation-params-v1';
+let P={...DEF},HSEL=DEF_H;
+// 各腳地面線：[[距原點 mm, 高程 mm], …]；原點＝該腳大梁中心線與井桶外緣、原地面之交點，高程 0 = 原地面
+const flatGround=()=>({a:[[0,0]],b:[[0,0]],c:[[0,0]],d:[[0,0]]});
+let GROUND=flatGround();
+try{const s=JSON.parse(localStorage.getItem(STORE)||'null');if(s){for(const k of KEYS)if(isFinite(s[k]))P[k]=+s[k];if(HS.some(h=>h.n===s.hsel))HSEL=s.hsel;
+  if(s.ground)for(const a of 'abcd')if(Array.isArray(s.ground[a])&&s.ground[a].length&&s.ground[a].every(p=>isFinite(p[0])&&isFinite(p[1])))GROUND[a]=s.ground[a].map(p=>[+p[0],+p[1]]);}}catch(e){}
+function groundAt(arm,d){ // 線性內插；超出範圍取端點高程
+  const pts=(GROUND[arm]||[[0,0]]).slice().sort((p,q)=>p[0]-q[0]);
+  if(d<=pts[0][0])return pts[0][1];
+  for(let i=1;i<pts.length;i++)if(d<=pts[i][0]){const [x0,y0]=pts[i-1],[x1,y1]=pts[i];return x1===x0?y1:y0+(y1-y0)*(d-x0)/(x1-x0);}
+  return pts.at(-1)[1];
+}
+const groundIsFlat=a=>GROUND[a].every(p=>Math.abs(p[1])<1e-9);
+const $=id=>document.getElementById(id);
+const curH=()=>HS.find(h=>h.n===HSEL)||HS[0];
+for(const k of KEYS){const el=$(k);el.value=P[k];el.addEventListener('input',()=>{const v=parseFloat(el.value);if(isFinite(v)&&v>=0){P[k]=v;update();}});}
+$('hsel').innerHTML=HS.map(h=>`<option value="${h.n}">${h.n}×${h.tw}×${h.tf}</option>`).join('');
+$('hsel').value=HSEL;$('hsel').addEventListener('change',e=>{HSEL=e.target.value;update();});
+$('reset').onclick=()=>{P={...DEF};HSEL=DEF_H;GROUND=flatGround();$('hsel').value=HSEL;for(const k of KEYS)$(k).value=P[k];update();fitView();};
+
+const CIRC=['','①','②','③','④','⑤','⑥','⑦'];
+const fmt=v=>Math.round(v).toLocaleString('en-US');
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function derive(){
+  const D=P.p1,R=D/2,ext=P.p2,d3=P.p3,d4=P.p4,w=P.p5,h=P.p6;
+  const L=D+ext*2, top=h+d3;
+  const bot=u=>{u=Math.abs(u);return u<=R?h:h+(u-R)/(L/2-R||1)*(d3-d4);};
+  const pOut=L/2-P.q5, pIn=pOut-P.q1; // pedestal base along beam
+  const hw=Math.min(w/2,R), t0=Math.sqrt(R*R-hw*hw);           // where a beam edge meets the shaft
+  const dz=d3-d4, Ls=Math.hypot(ext,dz), ang=Math.atan2(dz,ext); // sloped beam bottom
+  return {D,R,ext,d3,d4,w,h,L,top,bot,pOut,pIn,hw,t0,dz,Ls,ang};
+}
+
+// ---------- SVG helpers ----------
+const NS='http://www.w3.org/2000/svg';
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+function poly(svg,pts,close,cls){return el(close?'polygon':'polyline',{points:pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' '),class:cls||'obj'},svg);}
+function dim(svg,p1,p2,off,label,value,tpos){
+  tpos=tpos==null?0.5:tpos;
+  const dx=p2[0]-p1[0],dy=p2[1]-p1[1],len=Math.hypot(dx,dy)||1,ux=dx/len,uy=dy/len,nx=-uy,ny=ux;
+  const q1=[p1[0]+nx*off,p1[1]+ny*off],q2=[p2[0]+nx*off,p2[1]+ny*off],s=Math.sign(off)||1;
+  const g=el('g',{class:'dim'},svg);
+  if(Math.abs(off)>2){
+    el('line',{x1:p1[0]+nx*2*s,y1:p1[1]+ny*2*s,x2:q1[0]+nx*4*s,y2:q1[1]+ny*4*s},g);
+    el('line',{x1:p2[0]+nx*2*s,y1:p2[1]+ny*2*s,x2:q2[0]+nx*4*s,y2:q2[1]+ny*4*s},g);
+  }
+  el('line',{x1:q1[0],y1:q1[1],x2:q2[0],y2:q2[1]},g);
+  const a=6,b=2.2;
+  for(const [q,dir] of [[q1,1],[q2,-1]]){
+    const tx=q[0]+ux*a*dir,ty=q[1]+uy*a*dir;
+    el('polygon',{points:`${q[0]},${q[1]} ${tx+nx*b},${ty+ny*b} ${tx-nx*b},${ty-ny*b}`,class:'arr'},g);
+  }
+  let ang=Math.atan2(uy,ux)*180/Math.PI;if(ang>90)ang-=180;if(ang<=-90)ang+=180;
+  const mx=q1[0]+(q2[0]-q1[0])*tpos,my=q1[1]+(q2[1]-q1[1])*tpos;
+  const r=ang*Math.PI/180;const tnx=Math.sin(r),tny=-Math.cos(r); // "up" of rotated text
+  const t=el('text',{x:mx+tnx*4,y:my+tny*4,transform:`rotate(${ang.toFixed(2)} ${mx+tnx*4} ${my+tny*4})`,class:'dtxt'},g);
+  const ts=el('tspan',{class:'dno'},t);ts.textContent=label;
+  const tv=el('tspan',{},t);tv.textContent=' '+value;
+  return g;
+}
+function svgStyle(svg){
+  el('style',{},svg).textContent=`
+  .obj{fill:none;stroke:${css('--draw')};stroke-width:1.3}
+  .fill{fill:${css('--draw')};fill-opacity:.07;stroke:${css('--draw')};stroke-width:1.3}
+  .faint{fill:none;stroke:${css('--drawfaint')};stroke-width:1;stroke-dasharray:4 3}
+  .gnd{stroke:${css('--draw')};stroke-width:1.2}
+  .hatch{stroke:${css('--drawfaint')};stroke-width:.8}
+  .dim line{stroke:${css('--accent2')};stroke-width:.8}
+  .arr{fill:${css('--accent2')}}
+  .dtxt{font:10.5px "Microsoft JhengHei",sans-serif;fill:${css('--ink')};text-anchor:middle;paint-order:stroke;stroke:${css('--field')};stroke-width:3px;stroke-linejoin:round;font-variant-numeric:tabular-nums}
+  .dno{fill:${css('--accent')};font-weight:700}
+  .ply{fill:#e0b36a;fill-opacity:.75;stroke:${css('--draw')};stroke-width:.6}
+  .tim{fill:#a8733c;fill-opacity:.85;stroke:${css('--draw')};stroke-width:.6}
+  .stl{fill:#4b6a88;fill-opacity:.85;stroke:${css('--draw')};stroke-width:.6}
+  .cl{stroke:${css('--drawfaint')};stroke-width:.7;stroke-dasharray:10 3 2 3;fill:none}`;
+}
+
+function drawPlan(g){
+  const svg=$('plan');svg.innerHTML='';svgStyle(svg);
+  const W=360,m=48;
+  const c45=Math.SQRT1_2;
+  const ext=Math.max((g.L/2+g.w/2)*c45,g.R);
+  const s=(W/2-m)/ext;const H=W;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const cx=W/2,cy=H/2;
+  // plan coords: t along arm, n across; arm angle a (math, y up)
+  const P2=(a,t,n)=>{const ca=Math.cos(a),sa=Math.sin(a);return [cx+(t*ca-n*sa)*s,cy-(t*sa+n*ca)*s];};
+  const angs=[45,135,225,315].map(d=>d*Math.PI/180);
+  const hw=g.w/2, t0=hw<g.R?Math.sqrt(g.R*g.R-hw*hw):0;
+  // centerlines
+  for(const a of [angs[0],angs[1]]) el('line',{x1:P2(a,-g.L/2-400,0)[0],y1:P2(a,-g.L/2-400,0)[1],x2:P2(a,g.L/2+400,0)[0],y2:P2(a,g.L/2+400,0)[1],class:'cl'},svg);
+  el('circle',{cx,cy,r:g.R*s,class:'fill'},svg);
+  for(const a of angs){
+    poly(svg,[P2(a,t0,hw),P2(a,g.L/2,hw),P2(a,g.L/2,-hw),P2(a,t0,-hw)],false,'obj');
+    const pw=P.q3/2;
+    poly(svg,[P2(a,g.pIn,pw),P2(a,g.pOut,pw),P2(a,g.pOut,-pw),P2(a,g.pIn,-pw)],true,'obj');
+    poly(svg,[P2(a,g.pIn,pw),P2(a,g.pIn+P.q2,pw),P2(a,g.pIn+P.q2,-pw),P2(a,g.pIn,-pw)],true,'faint');
+  }
+  // dims
+  const a1=angs[0],a2=angs[1],a4=angs[3];
+  dim(svg,P2(a2,-g.L/2,-hw),P2(a2,g.L/2,-hw),-14,'⑦',fmt(g.L),0.8);      // overall length along one beam edge
+  dim(svg,P2(Math.PI,g.R,0),P2(0,g.R,0),0,'①φ',fmt(g.D),0.32);            // diameter through centre
+  dim(svg,P2(a4,g.R,0),P2(a4,g.L/2,0),0,'②',fmt(g.ext));                  // arm projection on centreline
+  dim(svg,P2(angs[2],g.L/2,-hw),P2(angs[2],g.L/2,hw),-14,'⑤',fmt(g.w));   // beam width at arm end
+  // 腳編號：右下 a，順時針 b、c、d；剖面線 a–c、b–d
+  for(const d of [45,135,225,315]){const [x,y]=P2(d*Math.PI/180,g.L/2+1100,0);armTag(svg,x,y,ARMS[d],9);}
+  const cut=(d,txt)=>{const [x,y]=P2(d*Math.PI/180,g.L/2*0.62,-(hw+700));const t=el('text',{x,y:y-6,class:'dtxt',transform:`rotate(${-(d%180===135?-45:45)} ${x} ${y-6})`},svg);t.textContent=txt;};
+  cut(315,'剖面 a–c');cut(225,'剖面 b–d');
+}
+
+// 大梁（腳）編號：自右下為 a，順時針 b、c、d（平面角度：315°=a、225°=b、135°=c、45°=d）
+const ARMS={315:'a',225:'b',135:'c',45:'d'};
+function armTag(svg,x,y,letter,r){
+  r=r||10;
+  el('circle',{cx:x,cy:y,r,style:`fill:${css('--accent')};stroke:none`},svg);
+  const t=el('text',{x,y:y+4.5,style:'font:700 13px sans-serif;fill:#fff;text-anchor:middle'},svg);t.textContent=letter;
+}
+function drawSect(g,id,left,right){
+  const svg=$(id);svg.innerHTML='';svgStyle(svg);
+  const W=360,mx=40;
+  const reach=g.ext+PWE+600;                                // 地面線繪至梁端（含平台）外 60 cm
+  const gpts=arm=>{const ds=new Set([0,reach]);for(const p of GROUND[arm])if(p[0]>0&&p[0]<reach)ds.add(p[0]);return [...ds].sort((x,y)=>x-y).map(d=>[d,groundAt(arm,d)]);};
+  const sideArm={'-1':left,'1':right};
+  const gMin=Math.min(0,...[left,right].flatMap(a=>gpts(a).map(p=>p[1])));
+  const pedTop=g.top+P.q4, below=Math.max(Math.min(P.q6,g.h*0.6),-gMin+300);
+  let s=(W-2*mx)/(g.L+2*PWE);   // 含梁端平台支撐
+  const totalH=pedTop+below;
+  const maxH=320; if(totalH*s>maxH) s=maxH/totalH;
+  const H=Math.ceil(totalH*s+60+56);
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const ox=W/2, oy=40+pedTop*s;
+  const X=u=>ox+u*s, Y=y=>oy-y*s, pt=(u,y)=>[X(u),Y(y)];
+  // 地面線：井桶下為原地面（高程 0）；兩側依各腳地面線，可點選編輯
+  el('line',{x1:X(-g.R),y1:Y(0),x2:X(g.R),y2:Y(0),class:'gnd'},svg);
+  for(const sg of [-1,1]){
+    const arm=sideArm[sg],pts=gpts(arm).map(([d,z])=>[X(sg*(g.R+d)),Y(z)]);
+    poly(svg,pts,false,'gnd').setAttribute('style','fill:none');
+    for(let d=300;d<reach;d+=Math.max(600,g.L/30)){const x=X(sg*(g.R+d)),y=Y(groundAt(arm,d));el('line',{x1:x,y1:y,x2:x-6,y2:y+6,class:'hatch'},svg);}
+    if(!groundIsFlat(arm))for(const [d,z] of gpts(arm))if(d<reach){const t=el('text',{x:X(sg*(g.R+d)),y:Y(z)+13,class:'dtxt',style:'font-size:9px'},svg);t.textContent=(z>0?'+':'')+fmt(z);}
+    const hit=poly(svg,pts,false,'');hit.setAttribute('style','fill:none;stroke:rgba(0,0,0,0);stroke-width:14;cursor:pointer');
+    const tt=el('title',{},hit);tt.textContent=`點選以調整 ${arm} 腳地面高程`;
+    hit.addEventListener('click',()=>openGround(arm));
+    el('circle',{cx:X(sg*g.R),cy:Y(groundAt(arm,0)),r:2.6,style:`fill:${css('--accent')}`},svg);
+  }
+  const note=el('text',{x:W/2,y:H-6,class:'dtxt',style:'font-size:10px'},svg);note.textContent=`點選地面線可調整 ${left}／${right} 腳高程（原點＝與井桶相交處●）`;
+  // underground shaft (dashed)
+  if(P.q6>0) poly(svg,[pt(-g.R,0),pt(-g.R,-below),pt(g.R,-below),pt(g.R,0)],false,'faint');
+  // shaft + beam outline (as in the drawing)
+  const b=g.bot(g.L/2);
+  poly(svg,[pt(-g.R,0),pt(-g.R,g.h),pt(-g.L/2,b),pt(-g.L/2,g.top),pt(g.L/2,g.top),pt(g.L/2,b),pt(g.R,g.h),pt(g.R,0)],true,'fill');
+  el('line',{x1:X(-g.R),y1:Y(g.h),x2:X(g.R),y2:Y(g.h),class:'faint'},svg);
+  el('line',{x1:X(0),y1:Y(-below-300),x2:X(0),y2:Y(pedTop+400),class:'cl'},svg);
+  // pedestals
+  for(const sg of [1,-1]){
+    poly(svg,[pt(sg*g.pIn,g.top),pt(sg*g.pOut,g.top),pt(sg*(g.pIn+P.q2),pedTop),pt(sg*g.pIn,pedTop)],true,'obj');
+  }
+  // shoring (projection: H-beam, standards, ledger levels along the arm)
+  if(LAY&&LAY.ok){
+    const sc=css('--accent2');
+    for(const sg of [1,-1]){
+      const AD=LAY.arms[sideArm[sg]],cols=AD.cols;
+      const c0=cols[0],hEnd=g.R+LAY.len;
+      const yAt=t=>c0.yH+(t-c0.t)*Math.tan(g.ang);
+      el('line',{x1:X(sg*g.R),y1:Y(yAt(g.R)+LAY.H.H/2),x2:X(sg*hEnd),y2:Y(yAt(hEnd)+LAY.H.H/2),style:`stroke:#4b6a88;stroke-width:${Math.max(1.5,LAY.H.H*s)}`},svg);
+      for(const col of cols) el('line',{x1:X(sg*col.t),y1:Y(col.gz),x2:X(sg*col.t),y2:Y(col.yH),style:`stroke:${sc};stroke-width:1.1`},svg);
+      for(const bay of AD.bays){ if(bay.a[1]!==0||bay.b[1]!==0)continue;
+        const A=cols[bay.a[0]],B=cols[bay.b[0]];
+        for(const y of bay.lv) el('line',{x1:X(sg*A.t),y1:Y(y),x2:X(sg*B.t),y2:Y(y),style:`stroke:${sc};stroke-width:.6;opacity:.8`},svg);
+        bay.diag.forEach((d,m)=>{const f=(m+bay.a[0])%2;el('line',{x1:X(sg*A.t),y1:Y(f?d.y0:d.y1),x2:X(sg*B.t),y2:Y(f?d.y1:d.y0),style:`stroke:${ITEM.dia.c};stroke-width:.7`},svg);});
+      }
+    }
+  }
+  // 腳編號（剖面左端／右端）
+  armTag(svg,X(-g.L/2)-14,Y(g.top)-12,left);
+  armTag(svg,X(g.L/2)+14,Y(g.top)-12,right);
+  // dims
+  dim(svg,pt(-g.L/2,pedTop),pt(g.L/2,pedTop),-18,'⑦',fmt(g.L));
+  dim(svg,pt(-g.R,0),pt(g.R,0),14+ (P.q6>0?0:0),'①',fmt(g.D));
+  dim(svg,pt(g.R,g.top),pt(g.R,g.h),Math.min(-12,-(g.R*s)*0.35),'③',fmt(g.d3));
+  dim(svg,pt(g.R,g.h),pt(g.R,0),Math.min(-12,-(g.R*s)*0.35),'⑥',fmt(g.h));
+  dim(svg,pt(g.L/2,b),pt(g.L/2,g.top),-16,'④',fmt(g.d4));
+  dim(svg,pt(g.R,g.h),pt(g.L/2,b),14,'②',fmt(g.ext));
+}
+
+// ---------- quantities / validation ----------
+function quantities(g){
+  const area=g.D*g.d3+g.ext*(g.d3+g.d4);           // beam profile (mm²)
+  // plan area of the beam cross lying inside the shaft circle (beam is full depth ③ there)
+  const hw=Math.min(g.w/2,g.R);
+  const strip=2*(hw*Math.sqrt(g.R*g.R-hw*hw)+g.R*g.R*Math.asin(hw/g.R));
+  const crossIn=Math.max(0,2*strip-(2*hw)*(2*hw));
+  const vShaft=Math.PI*g.R*g.R*g.top/1e9;          // shaft from ground up to beam top
+  const vBeam=((2*area-g.w*g.d3)*g.w-crossIn*g.d3)/1e9; // beams outside the shaft, crossing counted once (m³)
+  const vPed=4*(P.q1+P.q2)/2*P.q4*P.q3/1e9;
+  const slope=(g.d3-g.d4)/g.ext;
+  const rows=[
+    ['⑦ 梁全長',fmt(g.L)+' mm'],
+    ['梁頂距地面高度（⑥+③）',fmt(g.top)+' mm'],
+    ['梁外端底距地面高度',fmt(g.bot(g.L/2))+' mm'],
+    ['梁底斜率（③−④）/②',(slope*100).toFixed(2)+' %'],
+    ['墩座頂距地面高度',fmt(g.top+P.q4)+' mm'],
+    ['墩座中心間距（沿梁）',fmt(2*(g.pIn+g.pOut)/2)+' mm'],
+    ['混凝土：井桶（地面至梁頂）',vShaft.toFixed(2)+' m³'],
+    ['混凝土：十字梁（扣除井桶內及交叉重疊）',vBeam.toFixed(2)+' m³'],
+    ['混凝土：塔腳墩座 ×4',vPed.toFixed(2)+' m³'],
+  ];
+  const tot=vShaft+vBeam+vPed;
+  $('qty').innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')+`<tr class="total"><td>混凝土合計</td><td>${tot.toFixed(2)} m³</td></tr>`;
+}
+function validate(g){
+  const w=[];
+  if(g.w>=g.D) w.push('⑤ 梁寬 ≥ ① 井桶直徑，梁將超出井桶外緣。');
+  if(g.d4>g.d3) w.push('④ 梁外緣深大於 ③ 梁內緣深，梁底將往外向下傾斜。');
+  if(g.pIn<g.R) w.push('塔腳墩座伸入井桶範圍內，請加大 ② 或調整墩座尺寸。');
+  if(P.q2>P.q1) w.push('墩座頂長大於底長。');
+  for(const k of ['p1','p2','p3','p4','p5']) if(!(P[k]>0)) w.push(CIRC[+k[1]]+' 需大於 0。');
+  $('warn').innerHTML=w.join('<br>');
+}
+
+// ---------- formwork quantities ----------
+// ---------- ringlock shoring：依 DS-main/ACT2026112301（tower-support-2026112301.js）之配置方式 ----------
+// 作業平台（使用者設定）：PWS 大梁兩側、PWE 梁端；0 表示不設平台（mm）
+let PWS=900,PWE=900;
+function setPlatform(){const wd=+P.z22||900;PWS=+P.z21?wd:0;PWE=+P.z23?wd:0;}
+const EC=100;          // 邊距下限（mm）
+const TOLM=1e-6;
+const LED=[600,900,1200,1500,1800,2400];                       // 具 1.5m 斜桿之橫桿跨距
+// 品項與顏色（3D 圖示及圖例共用）
+const ITEM={
+  jack:{n:'下調整座 J63601',c:'#3f4650'}, sock:{n:'標準基座 V62020',c:'#8e5bd6'},
+  flat:{n:'平主架 V60xxx',c:'#12a39a'},   std:{n:'主架 V61xxx',c:'#2f6fd6'},
+  sub:{n:'輔助桿 V62025/V62050',c:'#e0459a'}, uh:{n:'上調整座 U63601',c:'#d93a3a'},
+  led:{n:'橫桿 H66xxx',c:'#62c23a'},       dia:{n:'斜桿 D6xxxx',c:'#f39a1e'},
+  hb:{n:'H型鋼',c:'#4b6a88'}, tim:{n:'角材',c:'#a8733c'}, ply:{n:'模板（合板）',c:'#e0b36a'}
+};
+const PIECE=(len,type)=>({len,type,name:type==='flat'?`V60${len/10} 平主架 ${(len/1000).toFixed(1)}m`:type==='std'?`V61${len/10} 主架 ${(len/1000).toFixed(1)}m`:`V620${len===250?'25':'50'} 輔助桿 ${(len/1000).toFixed(2).replace(/0$/,'')}m`});
+// H 型鋼強軸斷面（含 4 處根部圓角，同 DS-main tower-foundation.js steelSection）：cm⁴、cm³
+function hProps(H){
+  const r=(H.H>=300||H.B>=175?13:8)/10,h=H.H/10,b=H.B/10,tw=H.tw/10,tf=H.tf/10,hw=h-2*tf,fc=(h-tf)/2;
+  const fa=(1-Math.PI/4)*r*r,f1=r**3/6,f2=(1/3-Math.PI/16)*r**4,cc=hw/2-r,fi=f2+2*cc*f1+cc*cc*fa;
+  const I=tw*hw**3/12+2*b*tf*(tf*tf/12+fc*fc)+4*fi;
+  return {I,Z:I/(h/2),As:tw*h};
+}
+function stdCombo(S){ // 依 ACT：平主架優先 1.5m（再試 1.0、3.0m），其上以主架 1.5m／1.0m 接續（取最少支數，1.5m 在下）
+  const fill=R=>{const n=Math.round(R/500),best=Array(n+1).fill(Infinity),from=Array(n+1).fill(0);best[0]=0;
+    for(let i=1;i<=n;i++)for(const p of [1500,1000]){const d=p/500;if(d<=i&&best[i-d]+1<best[i]){best[i]=best[i-d]+1;from[i]=p;}}
+    if(!isFinite(best[n]))return null;const out=[];let i=n;while(i>0){out.push(from[i]);i-=from[i]/500;}return out.sort((a,b)=>b-a);};
+  for(const f of [1500,1000,3000]){if(S<f)continue;const m=fill(S-f);if(m)return [PIECE(f,'flat'),...m.map(l=>PIECE(l,'std'))];}
+  return [PIECE(Math.max(1000,S),'flat')];
+}
+// 制式跨距排列：主跨重複 + 一個較短跨；兩端邊距 ≥ 10 cm 且 ≤ 端跨之半（shortAtStart：短跨置於井桶側）
+function axisCandidates(length,sizes,shortAtStart){
+  const out=new Map(),usable=length-2*EC;
+  for(const primary of sizes)for(const last of sizes){
+    if(last>primary||last>usable+TOLM)continue;
+    const repeats=Math.floor((usable-last+TOLM)/primary);if(repeats>150)continue;
+    const gaps=Array(repeats).fill(primary);
+    gaps.splice(shortAtStart&&(last===600||last===900)?0:Math.floor(repeats/2),0,last);
+    const free=length-(repeats*primary+last);
+    const minimum=Math.max(EC,free-gaps.at(-1)/2),maximum=Math.min(free-EC,gaps[0]/2);
+    if(minimum>maximum+TOLM)continue;
+    const margin=shortAtStart?Math.max(minimum,Math.min(maximum,free/2)):free/2,endMargin=free-margin;
+    if(endMargin>gaps.at(-1)/2+TOLM||margin>gaps[0]/2+TOLM)continue;
+    const positions=[margin];for(const gp of gaps)positions.push(positions.at(-1)+gp);
+    out.set(gaps.join('/'),{gaps,positions,nominal:Math.max(...gaps),endMargin});
+  }
+  return [...out.values()];
+}
+// 橫向加兩側 90 cm 平台排；各排分擔線載重（tf/m）
+function extendAcross(ax,width,p,pp){
+  const ext=PWS>0;
+  const positions=ext?[ax.positions[0]-PWS,...ax.positions,ax.positions.at(-1)+PWS]:[...ax.positions];
+  const gaps=ext?[PWS,...ax.gaps,PWS]:[...ax.gaps];
+  const bnd=[-PWS,...positions.slice(1).map((v,i)=>(v+positions[i])/2),width+PWS];
+  const lineLoads=positions.map((_,i)=>{const s=bnd[i],e=bnd[i+1],u=Math.max(0,Math.min(width,e)-Math.max(0,s));return (u*p+(e-s-u)*pp)/1000;});
+  return {positions,gaps,lineLoads};
+}
+// 木角材：逐跨（含端部懸挑、局部載重）求容許間距 pitch（m）；單位 kgf、cm，載重取 1 m 條帶
+function timberPitchLimit(tm,posM,widthM,p,pp,ratio){
+  const pw=PWS/1000;
+  const zones=[[-pw,0,pp],[0,widthM,p],[widthM,widthM+pw,pp]].filter(z=>z[1]>z[0]);
+  const over=[posM[0]+pw,widthM+pw-posM.at(-1)];
+  const qo=PWS>0?pp:p;                                   // 端部懸挑載重：有平台取平台面載重（同 ACT），無平台取梁下面載重
+  const endM=over.map(L=>-qo*L*L/2), EI=tm.e*tm.I;
+  let lim={pitch:Infinity,criterion:'',span:0};
+  const chk=(span,M,V,D)=>{for(const [c,pt] of [['彎矩',tm.fb*tm.Z/(M*1e5)],['剪力',tm.fv*tm.As/(V*1000)],['撓度',span*100/ratio*EI/(D*1e9)]])if(pt<lim.pitch)lim={pitch:pt,criterion:c,span};};
+  for(const s of over)if(s>TOLM&&qo>0)chk(s,qo*s*s/2,qo*s,qo*s**4/8);
+  for(let i=0;i<posM.length-1;i++){
+    const L0=posM[i],R0=posM[i+1],span=R0-L0;
+    const pats=zones.map(([a,b,q])=>({a:Math.max(L0,a)-L0,b:Math.min(R0,b)-L0,q})).filter(z=>z.b>z.a);
+    const lm=i===0?endM[0]:0,rm=i===posM.length-2?endM[1]:0;
+    let tot=0,fm=0,qmax=0;for(const z of pats){const f=(z.b-z.a)*z.q;tot+=f;fm+=f*(z.a+z.b)/2;qmax=Math.max(qmax,z.q);}
+    let V=(tot*span-fm+rm-lm)/span,M=lm,Vm=Math.abs(V),Mm=Math.max(Math.abs(lm),Math.abs(rm));
+    for(const z of pats){const L=z.b-z.a,nv=V-z.q*L;if(V>0&&nv<0)Mm=Math.max(Mm,Math.abs(M+V*V/(2*z.q)));M+=(V+nv)*L/2;V=nv;Vm=Math.max(Vm,Math.abs(V));Mm=Math.max(Mm,Math.abs(M));}
+    const D=Math.min(5*qmax*span**4/384,tot*span**3/48)+(Math.abs(lm)+Math.abs(rm))*span**2/8;
+    chk(span,Mm,Vm,D);
+  }
+  return lim;
+}
+// 型鋼：連續角材集中載重包絡；L、a 為沿斜梁長（cm）
+function steelSpanCheck(sec,line,spanM,sf,offM,ratio){
+  const a=offM*sf*100,L=spanM*sf*100,Mc=sec.fb*sec.Z,Vc=sec.fv*sec.As,EI=sec.e*sec.I;
+  const root=f=>{if(f(0)>=1)return 0;let lo=0,hi=1;while(f(hi)<1&&hi<1e12)hi*=2;for(let i=0;i<80;i++){const m=(lo+hi)/2;if(f(m)<=1)lo=m;else hi=m;}return lo;};
+  const Mat=x=>line*(2*x*x+4*a*x)/8,Vat=x=>line*(2*x+4*a)/2,Dr=x=>5*line*ratio*(2*x**3+4*a*x*x)/(384*EI);
+  const lim=line===0?[Infinity,Infinity,Infinity]:[root(x=>Mat(x)/Mc),root(x=>Vat(x)/Vc),root(Dr)];
+  const mx=Math.min(...lim);
+  return {M:Mat(L),Mc,V:Vat(L),Vc,D:Dr(L)*L/ratio,Dc:L/ratio,maximum:mx/(100*sf),criterion:['彎矩','剪力','撓度'][lim.indexOf(mx)],line,a,L};
+}
+// 斜桿層數（ACT countDiagonal）：h 為標準基座頂至支撐頂（m）
+function countDiagonal(h){
+  if(Number((h/1.5).toFixed(1))>2){const r=h%1.5;return Math.floor(h/1.5)+Number(r>1.15&&r<=1.65);}
+  if(h<1.5||Math.abs(h-1.5)<=0.15)return 0;
+  const r=h-1.5;return 1+Number(r>1.15&&r<=1.65);
+}
+const WOODS=[['杉木（氣乾比重 > 0.3）',70000,75,6],['杉木（氣乾比重 ≤ 0.3）',49000,52.5,4.2],['柳安（柳桉）',70000,90,6],['北美鐵杉',80000,85,7],['花旗松',100000,95,8]];
+let LAY=null;
+function layout(g){
+  const H=curH(),hp=hProps(H),warn=[],ratio=Math.max(1,P.z16);
+  const fail=msg=>{warn.push(msg);return {ok:false,warn,H,hp,cols:[],bays:[],pos:[],k:0,n:0,cnt:{},cntT:{},Pallow:P.z1/P.z2/LEGS,legP:[],conc:0,imp:0,live:0,armLoad:0};};
+  setPlatform();
+  const beamLen=g.ext,len=beamLen+PWE,w=g.w,Pallow=P.z1/P.z2/LEGS;
+  if(PWS>0&&w/2+PWS>g.R+TOLM)return fail(`井桶直徑與梁寬使井桶旁 ${fmt(PWS)} mm 兩側平台重疊，請縮小平台寬度或取消兩側平台。`);
+  // 梁下、平台面載重 tf/m²：僅計大梁混凝土（取最大梁深）＋衝擊＋L/L，不計塔腳墩座重量
+  const p=P.z3*Math.max(g.d3,g.d4)/1000+P.z4+P.z8, pp=P.z20;
+  const tA=(P.f3/10)*(P.f2/10),tm={e:P.z14,fb:P.z12,fv:P.z13,I:(P.f3/10)*(P.f2/10)**3/12,Z:(P.f3/10)*(P.f2/10)**2/6,As:tA*2/3,width:P.f3};
+  const bt=P.f1/10,bd={e:P.z19,fb:P.z17,fv:P.z18,I:100*bt**3/12,Z:100*bt*bt/6,As:100*bt*2/3};
+  const st={e:2.04e6,fb:P.z7*1000,fv:P.z15*1000,I:hp.I,Z:hp.Z,As:hp.As,width:H.B};
+  const layerDepth=P.f1+P.f2+H.H, slope=(g.d3-g.d4)/g.ext, sf=Math.hypot(1,slope);
+  const soffit=d=>g.h+slope*d;                                             // d：距井桶面（mm）
+  if(Math.min(soffit(0),soffit(len))<=layerDepth)return fail('梁底淨高不足，無法配置模板、木角材與型鋼。');
+  const sizes=[...LED].reverse();
+  // 縱向：自井桶面起，短跨在井桶側；有梁端平台時加入平台跨，由小至大排列
+  const along=axisCandidates(beamLen,sizes,true).filter(a=>PWE===0||a.endMargin<=PWE/2+TOLM).map(a=>{
+    if(PWE===0){
+      const bnd=[0,...a.positions.slice(1).map((v,i)=>(v+a.positions[i])/2),len];
+      const trib=a.positions.map((_,i)=>bnd[i+1]-bnd[i]);
+      return {gaps:a.gaps,positions:a.positions,endMargin:a.endMargin,nominal:a.nominal,trib,bTrib:trib,pTrib:trib.map(()=>0)};
+    }
+    const gaps=[...a.gaps,PWE].sort((x,y)=>x-y), free=len-gaps.reduce((s,v)=>s+v,0);
+    const mn=Math.max(EC,free-Math.min(PWE,gaps.at(-1))/2),mx=Math.min(free-EC,gaps[0]/2);
+    if(mn>mx+TOLM)return null;
+    const margin=Math.max(mn,Math.min(mx,a.positions[0])),positions=[margin];for(const gp of gaps)positions.push(positions.at(-1)+gp);
+    const bnd=[0,...positions.slice(1).map((v,i)=>(v+positions[i])/2),len];
+    const trib=positions.map((_,i)=>bnd[i+1]-bnd[i]),bTrib=positions.map((_,i)=>Math.max(0,Math.min(beamLen,bnd[i+1])-bnd[i]));
+    return {gaps,positions,endMargin:free-margin,nominal:Math.max(a.nominal,PWE),trib,bTrib,pTrib:trib.map((v,i)=>v-bTrib[i])};
+  }).filter(Boolean);
+  const across=axisCandidates(w,sizes,false);
+  if(!along.length||!across.length)return fail('梁底範圍放不下符合邊距的制式橫桿跨距。');
+  // 模板 1 m 條帶之容許板跨（m）
+  const bLine=(PWS>0||PWE>0?Math.max(p,pp):p)*10;
+  const boardSpan=Math.min(Math.sqrt(8*bd.fb*bd.Z/bLine),2*bd.fv*bd.As/bLine,Math.cbrt(384*bd.e*bd.I/(5*ratio*bLine)))/(100*sf);
+  if(boardSpan*1000<tm.width-TOLM)return fail(`模板容許板跨 ${(boardSpan*100).toFixed(1)} cm 小於角材寬，無法排入角材。`);
+  const grids=[];let widest=0,widestCrit=null;
+  for(const y of across){
+    if(PWS>0&&(y.positions[0]>PWS/2+TOLM||y.endMargin>PWS/2+TOLM))continue;
+    const fa=extendAcross(y,w,p,pp);
+    fa.pLineLoads=extendAcross(y,w,pp,pp).lineLoads;
+    fa.sLineLoads=fa.lineLoads.map((v,i)=>PWE>0?Math.max(v,fa.pLineLoads[i]):v);
+    const posM=fa.positions.map(v=>v/1000),wM=w/1000;
+    const tc=timberPitchLimit(tm,posM,wM,p,pp,ratio),tc2=PWE>0?timberPitchLimit(tm,posM,wM,pp,pp,ratio):tc;
+    const tLim=tc2.pitch<tc.pitch?tc2:tc;
+    const maxPitch=Math.min(boardSpan,tLim.pitch);
+    if(maxPitch>widest){widest=maxPitch;widestCrit=tLim;}
+    const lenM=len/1000,joistSpans=Math.ceil(lenM/maxPitch);if(joistSpans>400)continue;
+    const joistPitch=lenM/joistSpans;if(joistPitch*1000<tm.width-TOLM)continue;
+    if(y.positions[0]<st.width/2-TOLM||fa.gaps.some(gp=>gp<st.width-TOLM))continue;
+    const sLine=Math.max(...fa.sLineLoads)*10;
+    for(const x of along){
+      const legCount=x.positions.length*fa.positions.length;if(legCount>400)continue;
+      const off=Math.max(joistPitch,x.positions[0]/1000,x.endMargin/1000);
+      const sc=steelSpanCheck(st,sLine,x.nominal/1000,sf,off,ratio);
+      if(x.nominal/1000>sc.maximum+TOLM||sc.M>sc.Mc*(1+TOLM)||sc.V>sc.Vc*(1+TOLM)||sc.D>sc.Dc*(1+TOLM))continue;
+      const legP=x.positions.map((_,i)=>fa.lineLoads.map((ll,j)=>x.bTrib[i]/1000*ll+x.pTrib[i]/1000*fa.pLineLoads[j]));
+      const Pmax=Math.max(...legP.flat());if(Pmax>Pallow+TOLM)continue;
+      grids.push({x,y,fa,legCount,joistPitch,joistSpans,maxPitch,tLim,sc,legP,Pmax});
+    }
+  }
+  if(!grids.length){
+    if(widest>0&&widest*1000<tm.width)return fail(`木角材間距上限 ${(widest*100).toFixed(1)} cm 小於角材寬（控制：${widestCrit.criterion}），請加大角材或模板。`);
+    return fail('目前沒有同時符合模板、木角材、型鋼強度與單支主架載重的制式配置，請調整材料或載重試驗值。');
+  }
+  const avg=a=>a.gaps.reduce((s,v)=>s+v,0)/a.gaps.length;
+  grids.sort((a,b)=>b.x.nominal-a.x.nominal||avg(b.x)-avg(a.x)||a.legCount-b.legCount||a.joistSpans-b.joistSpans||b.y.nominal-a.y.nominal);
+  // ---- 高度組立：各腳依其地面線（GROUND，原點＝與井桶相交處）；同一腳內下調整座伸出量取同一圓盤相位，使相鄰主架圓盤同高 ----
+  const uMin=P.z10,uMax=Math.max(P.z10,P.z11),JMIN=80,JMAX=450;
+  const buildCols=(x,arm)=>{
+    const gz=x.positions.map(d=>groundAt(arm,d));
+    let best=null;
+    for(let ph=0;ph<500;ph+=5){
+      const bs=gz.map(z=>{let v=(((ph-z)%500)+500)%500;while(v<JMIN)v+=500;return v;});
+      if(bs.every(v=>v<=JMAX)){const dev=Math.max(...bs.map(v=>Math.abs(v-P.z6)));if(!best||dev<best.dev-1e-9)best={bs,dev};}
+    }
+    const bs=best?best.bs:gz.map(()=>P.z6);
+    const cols=[];
+    for(let i=0;i<x.positions.length;i++){
+      const d=x.positions[i],z=gz[i],bj=bs[i],B=z+bj+100,stdBot=z+bj+200;   // 標準基座圓盤距底 10 cm
+      const yH=soffit(d)-layerDepth, ext=yH-stdBot;                       // 同 ACT：垂直扣除模板＋角材＋型鋼；伸出量量至 U 型座頂
+      const T=Math.max(0,Math.floor((ext-uMin)/250)*250),S=Math.floor(T/500)*500,sub=T-S,u=ext-T;
+      if(S<1000||u>uMax+0.5)return null;
+      const pieces=stdCombo(S);if(sub)pieces.push(PIECE(250,'sub'));
+      // 主架圓盤距底 40 cm、間距 50 cm → 頂圓盤 = B+S；輔助桿圓盤在其頂下 10 cm → B+S+輔助桿長
+      cols.push({t:g.R+d,d,gz:z,b:bj,B,stdBot,yH,S,pieces,u,sub,topRing:B+S,subRing:sub?B+S+sub:null,frameTop:stdBot+S+sub});
+    }
+    cols.aligned=!!best;
+    return cols;
+  };
+  let sel=null,armCols=null;
+  for(const gr of grids){
+    const ac={};let okAll=true;
+    for(const a of ['a','b','c','d']){const c=buildCols(gr.x,a);if(!c){okAll=false;break;}ac[a]=c;}
+    if(okAll){sel=gr;armCols=ac;break;}
+  }
+  if(!sel)return fail('符合材料與載重之候選跨距中，部分腳之支撐高度無法以現有主架與調整座組立（請檢查地面高程）。');
+  const fa=sel.fa,k=fa.positions.length,n=sel.x.positions.length;
+  const pos=fa.positions.map(v=>v-w/2);                                     // 各排橫向座標（梁中心 = 0）
+  if(H.B>150)warn.push(`型鋼翼寬 ${H.B} mm 大於 U 型調整座（170×150），需另設托架。`);
+  const lift=+P.z5;
+  // 橫桿：自兩主架共有之最低圓盤（掃地桿）起以 1.5m 為單位；末端不足 1.5m 但達 1.0m 於 1.0m 圓盤；輔助桿組合頂端圓盤另拉一支
+  const levels=(L0,T)=>{const L=[];let y=L0;L.push(y);while(y+lift<=T+1){y+=lift;L.push(y);}if(T-y>=999)L.push(y+1000);return L;};
+  const cnt={},cntT={},add=(key,m,type)=>{cnt[key]=(cnt[key]||0)+m;cntT[type]=(cntT[type]||0)+m;};
+  const uName=Math.abs(g.ang)>1e-4?'U63601S U型活動調整座':'U63601 上調整座';
+  const ledName=L=>`H66${String(L/10).padStart(3,'0')} 橫桿 ${(L/1000).toFixed(1)}m`;
+  const diagName=bay=>`D6${String(bay/100).padStart(2,'0')}15 斜桿 ${(bay/1000).toFixed(1)}×1.5m`;
+  const nu=n-1,nc=k-1,mode=+P.z9;
+  const actPick=m=>{const s=new Set();for(let q=1;q<=Math.floor((m+2)/2);q++){const e=2*q;s.add((e>m+1?e-1:e)-2);}return s;}; // ACT：第 1、3、5…跨＋末跨（0 起算）
+  const arms={};
+  for(const a of ['a','b','c','d']){
+    const cols=armCols[a];
+    if(!cols.aligned)warn.push(`${a} 腳地面高差使下調整座（80～450 mm）無法讓各主架圓盤同高，橫桿可能無法水平拉設，請調整地面線。`);
+    for(const col of cols){add('J63601 下調整座',k,'jack');add('V62020 標準基座',k,'sock');add(uName,k,'uh');for(const pc of col.pieces)add(pc.name,k,pc.type);}
+    const bays=[],bayMap={},units=[];
+    for(let i=0;i<n-1;i++)for(let j=0;j<k;j++){const bb={a:[i,j],b:[i+1,j],len:sel.x.gaps[i]};bays.push(bb);bayMap['a'+i+'_'+j]=bb;}
+    for(let i=0;i<n;i++)for(let j=0;j<k-1;j++){const bb={a:[i,j],b:[i,j+1],len:fa.gaps[j]};bays.push(bb);bayMap['c'+i+'_'+j]=bb;}
+    for(const bay of bays){
+      const A=cols[bay.a[0]],C=cols[bay.b[0]];
+      bay.L0=Math.max(A.B,C.B);
+      bay.lv=levels(bay.L0,Math.min(A.topRing,C.topRing));
+      if(A.subRing&&C.subRing&&Math.abs(A.subRing-C.subRing)<1)bay.lv.push(A.subRing);
+      add(ledName(bay.len),bay.lv.length,'led');bay.diag=[];bay.br=false;
+    }
+    for(const col of cols)col.topLed=-Infinity;
+    for(const bay of bays)for(const ci of [bay.a[0],bay.b[0]])cols[ci].topLed=Math.max(cols[ci].topLed,...bay.lv);
+    for(const col of cols)col.free=col.yH-col.topLed;
+    // 斜桿位置
+    if(mode===3){
+      const pa=actPick(nu),pc=actPick(nc);
+      for(const i of pa)for(let j=0;j<k;j++)bayMap['a'+i+'_'+j].br=true;
+      for(const j of pc)for(let i=0;i<n;i++)bayMap['c'+i+'_'+j].br=true;
+      for(let i=0;i<nu;i++)for(let j=0;j<nc;j++)units.push({i,j,br:pa.has(i)&&pc.has(j)});
+    }else if(mode===2){
+      const mid=Math.floor(nc/2),brA=i=>i===0||((nu-1-i)%2===0);
+      for(let i=0;i<nu;i++)for(let j=0;j<k;j++)if(brA(i))bayMap['a'+i+'_'+j].br=true;
+      for(let i=0;i<=nu;i++)for(let j=0;j<nc;j++){const rt=(i>0&&i-1!==0&&brA(i-1))||(i<nu&&i!==0&&brA(i));if(j===mid||i===0||(rt&&(j===0||j===nc-1)))bayMap['c'+i+'_'+j].br=true;}
+      for(let i=0;i<nu;i++)for(let j=0;j<nc;j++)units.push({i,j,br:brA(i)});
+    }else for(let i=0;i<nu;i++)for(let j=0;j<nc;j++){
+      const br=mode===0||(i+j)%2===0||i===nu-1;units.push({i,j,br});
+      if(br)for(const key of ['a'+i+'_'+j,'a'+i+'_'+(j+1),'c'+i+'_'+j,'c'+(i+1)+'_'+j])bayMap[key].br=true;
+    }
+    // 斜桿層數與高度（ACT）：自掃地桿圓盤起每 1.5m 一層；層數 = min(countDiagonal, 可用層數)；超出主架頂則整支下移 50 cm
+    for(const bay of bays)if(bay.br){
+      const A=cols[bay.a[0]],C=cols[bay.b[0]];
+      const hgt=(Math.max(A.yH,C.yH)-Math.max(A.stdBot,C.stdBot))/1000;
+      const usable=Math.max(0,1+Math.floor((Math.max(A.frameTop,C.frameTop)-bay.L0-1000+1e-4)/1500));
+      const m=Math.min(countDiagonal(hgt),usable);
+      for(let q=0;q<m;q++){
+        let lo=bay.L0+q*1500,hi=lo+1500;
+        const drop=(hi>Math.min(A.frameTop,C.frameTop)+1e-3)?500:0;lo-=drop;hi-=drop;
+        bay.diag.push({y0:lo,y1:hi,drop});add(diagName(bay.len),1,'dia');
+      }
+    }
+    arms[a]={cols,bays,units};
+  }
+  const armLoad=sel.legP.flat().reduce((s,v)=>s+v,0);
+  const conc=P.z3*g.w*g.ext*(g.d3+g.d4)/2/1e9, areaArm=g.w*g.ext/1e6;
+  return {ok:true,warn,H,hp,k,n,pos,along:sel.x,across:fa,arms,cols:arms.a.cols,cnt,cntT,lift,Pallow,legP:sel.legP,Pmax:sel.Pmax,
+    uName,len,PWS,PWE,p,pp,sf,joistPitch:sel.joistPitch*1000,joistN:sel.joistSpans+1,maxPitch:sel.maxPitch*1000,tLim:sel.tLim,boardSpan:boardSpan*1000,
+    sc:sel.sc,st,tm,bd,ratio,armLoad,conc,imp:P.z4*areaArm,live:P.z8*areaArm,grids:grids.length,
+    c:Math.max(...fa.gaps),s:sel.x.nominal};
+}
+function shoreQty(g,L){
+  if(!L.ok){$('qtyS').innerHTML='';$('qtyC').innerHTML='';$('pinfo').textContent='';return;}
+  const okc=v=>v?'<b style="color:#16a34a">OK</b>':'<b style="color:var(--warn)">NG</b>';
+  const pct=(a,b)=>`${(a/b*100).toFixed(0)}%`;
+  const all=Object.values(L.arms).flatMap(a=>a.cols);
+  const sc=L.sc,ys=all.map(c=>c.S),fr=Math.max(...all.map(c=>c.free));
+  const r=[
+    ['單支主架容許強度（試驗值 ÷ 安全係數 ÷ 4 支腳）',`${P.z1} ÷ ${P.z2} ÷ ${LEGS} = ${L.Pallow.toFixed(3)} tf`],
+    ['梁下面載重（D/L 取最大梁深 + 衝擊 + L/L）',`${L.p.toFixed(3)} tf/m²（不計塔腳墩座重量）`],
+    ['作業平台',`兩側：${L.PWS?fmt(L.PWS)+' mm':'不設'}；梁端：${L.PWE?fmt(L.PWE)+' mm':'不設'}${L.PWS||L.PWE?`；平台面載重 ${L.pp.toFixed(3)} tf/m²`:''}`],
+    ['<b>配置結果</b>',`<b style="color:#16a34a">${L.grids} 組候選中，取縱向主跨最大者</b>`],
+    ['縱向間距（井桶側 → 梁端平台）',`邊距 ${fmt(L.along.positions[0])}／${L.along.gaps.map(fmt).join('、')}　共 ${L.n} 列`],
+    ['橫向間距（含兩側平台）',`${L.across.gaps.map(fmt).join('、')}　共 ${L.k} 排`],
+    ['每梁臂主架',`${L.k} × ${L.n} = ${L.k*L.n} 支`],
+    ['— 模板 —',`t=${fmt(P.f1)}，容許板跨 ${fmt(L.boardSpan)} mm`],
+    ['— 木角材 —',`${fmt(P.f3)}×${fmt(P.f2)}，容許間距 ${fmt(L.tLim.pitch*1000)} mm（控制：${L.tLim.criterion}）`],
+    ['　採用間距',`@${fmt(L.joistPitch)} mm × ${L.joistN} 支（${pct(L.joistPitch,L.maxPitch)}）`],
+    [`— 型鋼 ${L.H.n}（${L.k} 支／梁臂）—`,`主跨 ${fmt(L.s)} mm，容許水平跨距 ${fmt(sc.maximum*1000)} mm（控制：${sc.criterion}）`],
+    ['　彎矩',`${(sc.M/1e5).toFixed(3)} / ${(sc.Mc/1e5).toFixed(3)} tf·m　${okc(sc.M<=sc.Mc)}（${pct(sc.M,sc.Mc)}）`],
+    ['　剪力',`${(sc.V/1000).toFixed(3)} / ${(sc.Vc/1000).toFixed(3)} tf　${okc(sc.V<=sc.Vc)}（${pct(sc.V,sc.Vc)}）`],
+    ['　撓度',`${(sc.D*10).toFixed(2)} / ${(sc.Dc*10).toFixed(2)} mm（L/${L.ratio}）　${okc(sc.D<=sc.Dc)}`],
+    ['— 主架 —','單支最大垂直荷載'],
+    ['　軸向載重',`${L.Pmax.toFixed(3)} / ${L.Pallow.toFixed(3)} tf　${okc(L.Pmax<=L.Pallow)}（${pct(L.Pmax,L.Pallow)}）`],
+    ['主架組合高度',`${fmt(Math.min(...ys))} ～ ${fmt(Math.max(...ys))} mm`],
+    ['橫桿層距',`${fmt(L.lift)} mm（掃地桿於標準基座圓盤）`],
+    ...['a','b','c','d'].map(a=>{const cs=L.arms[a].cols;return [`${a} 腳：地面／下調整座／上調整座伸出量（各列）`,
+      `${groundIsFlat(a)?'地面 0':'地面 '+cs.map(c=>(c.gz>0?'+':'')+fmt(c.gz)).join('、')}；下 ${[...new Set(cs.map(c=>fmt(c.b)))].join('、')}；上 ${cs.map(c=>fmt(c.u)).join('、')} mm`];}),
+    ['上調整座伸出量限制',`${fmt(P.z10)}～${fmt(P.z11)} mm；下調整座 80～450 mm`],
+    ['頂層橫桿至型鋼底（最大）',fmt(fr)+' mm'],
+  ];
+  $('pinfo').textContent=`單支強度 = ${P.z1} ÷ ${P.z2} ÷ ${LEGS} = ${L.Pallow.toFixed(3)} tf，依此自動配置主架間距`;
+  $('qtyS').innerHTML=r.map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td></tr>`).join('');
+  const keys=Object.keys(L.cnt).sort();
+  $('qtyC').innerHTML=keys.map(k=>`<tr><td>${k}</td><td>${fmt(L.cnt[k])} 支</td></tr>`).join('');
+}
+function formQty(g){
+  const H=curH(),t=P.f1,L=LAY;
+  if(!L.ok){$('qtyF').innerHTML='';$('hinfo').textContent='';return;}
+  const W=g.w+2*PWS, lenS=L.len*L.sf;                                  // 含兩側平台之模板寬、沿斜長（含梁端平台）
+  const aTot=4*W*lenS/1e6, sheets=Math.ceil(aTot/(0.91*1.82));
+  const jN=4*L.joistN, jL1=W/1000, jLen=jN*jL1, jVol=jLen*P.f2*P.f3/1e6, SAI=0.0303*0.0303*3.03;
+  const hLen1=lenS/1000, hN=4*L.k, hLen=hLen1*hN, hKg=hLen*H.kg;
+  const r=[
+    [`<b>模板面積（梁底${PWS||PWE?'＋作業平台':''}，4 梁臂）</b>`,'<b>'+aTot.toFixed(2)+' m²</b>'],
+    [`模板 t=${fmt(t)} 材積`,(aTot*t/1000).toFixed(2)+' m³'],
+    ["合板片數（3'×6'）",fmt(sheets)+' 片'],
+    [`木角材 ${fmt(P.f3)}×${fmt(P.f2)} @${fmt(L.joistPitch)}`,`${fmt(jN)} 支 × ${jL1.toFixed(2)} m`],
+    ['角材總長／材積',`${jLen.toFixed(1)} m／${jVol.toFixed(2)} m³（${fmt(jVol/SAI)} 才）`],
+    [`型鋼 ${H.n}×${H.tw}×${H.tf}`,`${hN} 支 × ${hLen1.toFixed(2)} m`],
+    ['型鋼總長 / 總重',`${hLen.toFixed(1)} m / ${(hKg/1000).toFixed(2)} t`],
+    ['型鋼底距地面（井桶側／梁端平台）',`${fmt(L.cols[0].yH)}／${fmt(L.cols.at(-1).yH)} mm`],
+  ];
+  $('qtyF').innerHTML=r.map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td></tr>`).join('');
+  $('hinfo').textContent=`H=${H.H} B=${H.B} tw=${H.tw} tf=${H.tf}，單位重 ${H.kg} kg/m`;
+}
+
+// ---------- formwork detail (section across the beam bottom, incl. side platforms) ----------
+function drawForm(g){
+  const svg=$('form');svg.innerHTML='';svgStyle(svg);
+  if(!LAY.ok)return;
+  const H=curH(),t=P.f1,jh=P.f2,jb=P.f3,k=LAY.k;
+  const half=g.w/2+Math.max(PWS,150), show=Math.min(g.d4,Math.max(400,g.w*0.35));
+  const W=360,mx=34,s=(W-2*mx)/(half*2);
+  const totH=show+t+jh+H.H;
+  const Hh=Math.ceil(totH*s+78);
+  svg.setAttribute('viewBox',`0 0 ${W} ${Hh}`);
+  const ox=W/2,oy=28+show*s;
+  const X=n=>ox+n*s,Y=y=>oy-y*s,R4=(n1,y1,n2,y2,cls)=>el('rect',{x:X(Math.min(n1,n2)),y:Y(Math.max(y1,y2)),width:Math.abs(n2-n1)*s,height:Math.abs(y2-y1)*s,class:cls},svg);
+  poly(svg,[[X(-g.w/2),Y(show)],[X(-g.w/2),Y(0)],[X(g.w/2),Y(0)],[X(g.w/2),Y(show)]],false,'fill');
+  const hw2=g.w/2+PWS;                                   // 模板與角材實際寬度
+  R4(-hw2,0,hw2,-t,'ply');
+  R4(-hw2,-t,hw2,-t-jh,'tim');
+  const yT=-t-jh;
+  for(const n of LAY.pos){
+    const b=H.B/2,tw=H.tw/2;
+    poly(svg,[[n-b,yT],[n+b,yT],[n+b,yT-H.tf],[n+tw,yT-H.tf],[n+tw,yT-H.H+H.tf],[n+b,yT-H.H+H.tf],[n+b,yT-H.H],[n-b,yT-H.H],[n-b,yT-H.H+H.tf],[n-tw,yT-H.H+H.tf],[n-tw,yT-H.tf],[n-b,yT-H.tf]].map(p=>[X(p[0]),Y(p[1])]),true,'stl');
+  }
+  dim(svg,[X(-g.w/2),Y(show)],[X(g.w/2),Y(show)],14,'⑤',fmt(g.w));
+  if(PWS>0){
+    dim(svg,[X(-half),Y(0)],[X(-g.w/2),Y(0)],-16,'平台',fmt(PWS));
+    dim(svg,[X(g.w/2),Y(0)],[X(half),Y(0)],-16,'平台',fmt(PWS));
+  }
+  const note=(x,y,tx,anchor)=>{const e=el('text',{x,y,class:'dtxt','text-anchor':anchor||'middle'},svg);e.textContent=tx;};
+  // 型鋼間距標註
+  for(let j=0;j<k-1;j++)dim(svg,[X(LAY.pos[j]),Y(yT-H.H)],[X(LAY.pos[j+1]),Y(yT-H.H)],12,'',fmt(LAY.across.gaps[j]));
+  note(ox,Y(yT-H.H)+36,`模板 t=${fmt(t)}｜角材 ${fmt(jb)}×${fmt(jh)} @${fmt(LAY.joistPitch)}｜${H.n} × ${k} 支`);
+}
+
+
+// ---------- 3D ----------
+const S=0.001; // mm -> m
+const view=$('view');
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.localClippingEnabled=true;
+view.appendChild(renderer.domElement);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(40,1,0.1,2000);
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true;controls.dampingFactor=0.12;
+scene.add(new THREE.HemisphereLight(0xffffff,0x8a8f99,0.75));
+const sun=new THREE.DirectionalLight(0xffffff,0.75);sun.position.set(20,35,15);scene.add(sun);
+const sun2=new THREE.DirectionalLight(0xffffff,0.25);sun2.position.set(-20,10,-25);scene.add(sun2);
+
+const clipPlane=new THREE.Plane(new THREE.Vector3(0,0,-1),0);
+const mat={
+  shaft:new THREE.MeshStandardMaterial({color:0xb9bec7,roughness:.85,side:THREE.DoubleSide}),
+  beam:new THREE.MeshStandardMaterial({color:0xd3d6dc,roughness:.8,side:THREE.DoubleSide}),
+  ped:new THREE.MeshStandardMaterial({color:0xc9a27a,roughness:.8,side:THREE.DoubleSide}),
+  ghost:new THREE.MeshStandardMaterial({color:0x8a94a6,transparent:true,opacity:.22,depthWrite:false,side:THREE.DoubleSide}),
+  edge:new THREE.LineBasicMaterial({color:0x30343b}),
+  dim:new THREE.LineBasicMaterial({color:0x1d4ed8,depthTest:false,transparent:true}),
+  ground:new THREE.MeshStandardMaterial({color:0x9aa58c,roughness:1,transparent:true,opacity:.35,depthWrite:false,side:THREE.DoubleSide}),
+  gstrip:new THREE.MeshStandardMaterial({color:0x8d7a5e,roughness:1,transparent:true,opacity:.7,side:THREE.DoubleSide}),
+};
+mat.ply=new THREE.MeshStandardMaterial({color:0xe0b36a,roughness:.9,transparent:true,opacity:.55,depthWrite:false,side:THREE.DoubleSide});
+mat.tim=new THREE.MeshStandardMaterial({color:0xa8733c,roughness:.9});
+mat.stl=new THREE.MeshStandardMaterial({color:0x4b6a88,roughness:.45,metalness:.4});
+const solids=[mat.shaft,mat.beam,mat.ped,mat.edge,mat.ghost,mat.ply,mat.tim,mat.stl];
+
+let CUR=null;   // member info attached to every mesh created while it is set (for click-to-inspect)
+function box(parent,m,sx,sy,sz,x,y,z){ // sizes & centre in mm
+  if(sx<=0||sy<=0||sz<=0)return;
+  const b=new THREE.Mesh(new THREE.BoxGeometry(sx*S,sy*S,sz*S),m);b.position.set(x*S,y*S,z*S);b.userData.info=CUR;parent.add(b);
+}
+// ---- member info (specs from DTL.dxf) ----
+const SPEC={
+  jack:'牙管 STK400 Φ48.2×600×T5.0；底鈑 SS400 140×140×T6.0；扳手 FCD450',
+  sock:'鋼管(大) STK500 Φ70.2×100×T4.0；鋼管(小) STK500 Φ60.2×200×T3.2；圓盤 AISI1015 Φ134×T10',
+  flat:'鋼管 STK500 Φ60.2×T3.2；圓盤 AISI1015 Φ134×T10，間距 500（無連接棒）',
+  std:'鋼管 STK500 Φ60.2×T3.2；圓盤 AISI1015 Φ134×T10，間距 500；連接棒 SS400 40×40×T3.0',
+  sub:'鋼管(大) STK500 Φ70.2×70×T4.0；鋼管(小) STK500 Φ60.2×T3.2；圓盤 AISI1015 Φ134×T10',
+  uh:'牙管 STK400 Φ48.2×600×T5.0；活動U型鈑 SS400 170×150×H50×T6.0；扳手 FCD450',
+  led:'鋼管 STK400 Φ48.2×T2.5；橫桿頭 AISI1015；插銷 SS400 140×27×T6.0',
+  dia:'鋼管 STK400 Φ48.2×T2.5；斜桿頭 AISI1015；插銷 SS400 140×27×T6.0'
+};
+const okTxt=(v,lim)=>`${(v/lim*100).toFixed(0)}%　${v<=lim?'<b style="color:#16a34a">OK</b>':'<b style="color:var(--warn)">NG</b>'}`;
+function legInfo(L,arm,i,j,type,title,extra){
+  const cols=L.arms[arm[0]].cols, col=cols[i];
+  const P0=L.legP[i][j], side=L.PWS>0&&(j===0||j===L.k-1)?'（兩側平台排）':'', end=L.PWE>0&&col.d>L.len-L.PWE?'（梁端平台區）':'';
+  return {type,title,rows:[
+    ['位置',`${arm}・第 ${i+1} 列（距原點 ${fmt(col.d)}，地面 ${(col.gz>0?'+':'')+fmt(col.gz)}）${end}・第 ${j+1} 排${side}`],
+    ['規格',SPEC[type]],
+    ...extra,
+    ['軸向載重',`${P0.toFixed(3)} tf`],
+    ['容許強度',`${L.Pallow.toFixed(3)} tf（${P.z1} ÷ ${P.z2} ÷ ${LEGS}）`],
+    ['載重比',okTxt(P0,L.Pallow)],
+  ]};
+}
+function buildForm(g,parent){
+  const H=curH(),t=P.f1,jh=P.f2,jb=P.f3,L=LAY;
+  if(!L.ok)return;
+  // H-beam geometry (profile across the beam, extruded along the arm)
+  const lenS=L.len*L.sf, b=H.B/2, tw=H.tw/2, yT=-t-jh, Wd=g.w+2*PWS;
+  const prof=[[-b,0],[b,0],[b,-H.tf],[tw,-H.tf],[tw,-H.H+H.tf],[b,-H.H+H.tf],[b,-H.H],[-b,-H.H],[-b,-H.H+H.tf],[-tw,-H.H+H.tf],[-tw,-H.tf],[-b,-H.tf]];
+  const hShape=new THREE.Shape(prof.map(p=>new THREE.Vector2(p[0]*S,p[1]*S)));
+  const pos=L.pos, sc=L.sc, pitchS=L.joistPitch*L.sf;
+  const plyInfo={type:'ply',title:`模板（合板）t=${fmt(t)}`,rows:[['尺寸',`寬 ${fmt(Wd)}（梁寬 ${fmt(g.w)}${PWS?`＋兩側平台各 ${fmt(PWS)}`:''}）× 沿斜長 ${fmt(lenS)} mm／梁臂${PWE?`（含梁端平台 ${fmt(PWE)}）`:''}`],
+    ['材料',`E=${fmt(P.z19)}，Fb=${P.z17}，Fv=${P.z18} kgf/cm²`],
+    ['載重狀況',`梁下 ${L.p.toFixed(3)} tf/m²，平台 ${L.pp.toFixed(3)} tf/m²`],
+    ['板跨',`角材間距 ${fmt(L.joistPitch)} ／ 容許板跨 ${fmt(L.boardSpan)} mm　${okTxt(L.joistPitch,L.boardSpan)}`]]};
+  const timInfo={type:'tim',title:`木角材 ${fmt(jb)}×${fmt(jh)}`,rows:[['長度',`${fmt(Wd)} mm（梁寬${PWS?'＋兩側平台':''}）`],
+    ['材料',`E=${fmt(P.z14)}，Fb=${P.z12}，Fv=${P.z13} kgf/cm²`],
+    ['間距',`@${fmt(L.joistPitch)} mm（自動：全長 ${fmt(L.len)} ÷ ${L.joistN-1} 等分）`],
+    ['支承',`${L.k} 支 ${H.n}，跨距 ${L.across.gaps.map(fmt).join('、')} mm`],
+    ['容許間距',`${fmt(L.tLim.pitch*1000)} mm（控制：${L.tLim.criterion}，跨距 ${fmt(L.tLim.span*1000)}）`],
+    ['利用率',okTxt(L.joistPitch,L.maxPitch)]]};
+  const hbInfo={type:'hb',title:`${H.n}×${H.tw}×${H.tf} 型鋼`,rows:[['長度',`${fmt(lenS)} mm（井桶面至${PWE?'梁端平台外緣':'梁端'}，沿斜長）`],
+    ['斷面性質',`Ix=${L.hp.I.toFixed(0)} cm⁴，Zx=${L.hp.Z.toFixed(0)} cm³，${H.kg} kg/m`],
+    ['線載重',`${(sc.line/10).toFixed(3)} tf/m（各排分擔最大值）`],
+    ['支承',`主架縱向主跨 ${fmt(L.s)} mm；容許水平跨距 ${fmt(sc.maximum*1000)} mm（控制：${sc.criterion}）`],
+    ['彎矩',`${(sc.M/1e5).toFixed(3)} / ${(sc.Mc/1e5).toFixed(3)} tf·m　${okTxt(sc.M,sc.Mc)}`],
+    ['剪力',`${(sc.V/1000).toFixed(3)} / ${(sc.Vc/1000).toFixed(3)} tf　${okTxt(sc.V,sc.Vc)}`],
+    ['撓度',`${(sc.D*10).toFixed(2)} / ${(sc.Dc*10).toFixed(2)} mm（L/${L.ratio}）　${okTxt(sc.D,sc.Dc)}`]]};
+  [45,135,225,315].forEach((a,ai)=>{
+    const arm=new THREE.Group();arm.rotation.y=a*Math.PI/180;parent.add(arm);
+    // --- bottom system, laid on the sloped beam bottom (beam + 90 cm platforms) ---
+    const sub=new THREE.Group();sub.position.set(g.R*S,g.h*S,0);sub.rotation.z=g.ang;arm.add(sub);
+    CUR=plyInfo;box(sub,mat.ply,lenS,t,Wd,lenS/2,-t/2,0);
+    CUR=timInfo;for(let q=0;q<L.joistN;q++){const x=Math.min(lenS-jb/2,Math.max(jb/2,q*pitchS));box(sub,mat.tim,jb,jh,Wd,x,-t-jh/2,0);}
+    CUR=hbInfo;
+    const len=lenS;
+    for(const n of pos){
+      const geo=new THREE.ExtrudeGeometry(hShape,{depth:len*S,bevelEnabled:false});
+      geo.rotateY(Math.PI/2);                                            // extrude direction → along arm
+      const m=new THREE.Mesh(geo,mat.stl);m.position.set(0,yT*S,n*S);m.userData.info=CUR;sub.add(m);
+    }
+    // flat bottom between shaft face and the centreline edge (R - t0)
+    CUR=plyInfo;if(g.R>g.t0) box(arm,mat.ply,g.R-g.t0,t,g.w,(g.R+g.t0)/2,g.h-t/2,0);
+  });
+  CUR=null;
+}
+const MI={};   // one material per item type, colours from ITEM
+for(const k of ['jack','sock','flat','std','sub','uh','led','dia']){MI[k]=new THREE.MeshStandardMaterial({color:new THREE.Color(ITEM[k].c),roughness:.45,metalness:.25});solids.push(MI[k]);}
+MI.ring=new THREE.MeshStandardMaterial({color:0xb7bec6,roughness:.35,metalness:.6});solids.push(MI.ring);
+mat.tim.color.set(ITEM.tim.c);mat.stl.color.set(ITEM.hb.c);mat.ply.color.set(ITEM.ply.c);
+const GEO={};
+const unitCyl=(r,seg)=>{const k=r+'_'+seg;if(!GEO[k]){GEO[k]=new THREE.CylinderGeometry(r*S,r*S,1,seg);GEO[k].userData.shared=true;}return GEO[k];};
+const UP=new THREE.Vector3(0,1,0);
+function rod(parent,m,r,a,b,seg){ // a,b: [x,y,z] mm
+  const A=new THREE.Vector3(a[0]*S,a[1]*S,a[2]*S),B=new THREE.Vector3(b[0]*S,b[1]*S,b[2]*S),d=B.clone().sub(A),len=d.length();
+  if(len<=0)return;
+  const mesh=new THREE.Mesh(unitCyl(r,seg||8),m);mesh.scale.y=len;mesh.userData.info=CUR;
+  mesh.position.copy(A).add(B).multiplyScalar(.5);mesh.quaternion.setFromUnitVectors(UP,d.normalize());parent.add(mesh);
+}
+function buildShore(g,L,parent){
+  if(!L.ok)return;
+  const H=L.H, cheek=Math.max(H.B/2+8,80);
+  const el2=v=>fmt(v)+' mm';
+  [45,135,225,315].forEach((a,ai)=>{
+    const arm=new THREE.Group();arm.rotation.y=a*Math.PI/180;parent.add(arm);const AN=ARMS[a]+' 腳';
+    const AD=L.arms[ARMS[a]],cols=AD.cols;
+    cols.forEach((col,i)=>L.pos.forEach((n,j)=>{
+      const x=col.t,gz=col.gz,b=col.b,Bq=col.B,sb=col.stdBot;
+      // 1 下調整座：底鈑 + 牙管 + 扳手（立於該列地面）
+      CUR=legInfo(L,AN,i,j,'jack','J63601 下調整座',[['伸出量',el2(b)+'（80～450）'],['高程',`${el2(gz)} ～ ${el2(gz+b)}`]]);
+      box(arm,MI.jack,140,6,140,x,gz+3,n);
+      rod(arm,MI.jack,24.1,[x,gz+6,n],[x,gz+b+150,n]);
+      rod(arm,MI.jack,45,[x,gz+b-30,n],[x,gz+b,n],6);
+      // 2 標準基座 V62020：管長 200，圓盤距底 100（＝掃地桿高），頂部套管 100
+      CUR=legInfo(L,AN,i,j,'sock','V62020 標準基座',[['高程',`${el2(gz+b)} ～ ${el2(sb)}（圓盤 ${el2(Bq)}）`]]);
+      rod(arm,MI.sock,30.1,[x,gz+b,n],[x,sb,n]);
+      rod(arm,MI.sock,67,[x,Bq-5,n],[x,Bq+5,n],16);
+      rod(arm,MI.sock,35.1,[x,sb-10,n],[x,sb+90,n]);
+      // 3 平主架 → 4 主架（圓盤距底 400、間距 500）→ 5 輔助桿（套管在下、圓盤距頂 100）
+      let z=sb;
+      col.pieces.forEach((p,pi)=>{
+        CUR=legInfo(L,AN,i,j,p.type,p.name,[
+          ['長度',el2(p.len)],['高程',`${el2(z)} ～ ${el2(z+p.len)}`],
+          ['本柱組合',col.pieces.map((q,qi)=>(qi===pi?'<b>':'')+q.name.split(' ')[0]+(qi===pi?'</b>':'')).join(' + ')]]);
+        rod(arm,MI[p.type],30.1,[x,z+4,n],[x,z+p.len-4,n]);
+        const rings=[];
+        if(p.type==='sub'){rings.push(p.len-100);rod(arm,MI.sub,35.1,[x,z,n],[x,z+70,n]);}
+        else for(let r=400;r<p.len;r+=500)rings.push(r);
+        for(const r of rings)rod(arm,MI.ring,67,[x,z+r-5,n],[x,z+r+5,n],16);
+        z+=p.len;
+      });
+      // 6 上調整座：牙管 + 扳手 + U 型鈑
+      CUR=legInfo(L,AN,i,j,'uh',L.uName,[
+        ['伸出量',`${el2(col.u)}（限 ${fmt(P.z10)}～${fmt(P.z11)}）　${col.u>=P.z10-0.5&&col.u<=Math.max(P.z10,P.z11)+0.5?'<b style="color:#16a34a">OK</b>':'<b style="color:var(--warn)">NG</b>'}`],
+        ['型鋼底高程',el2(col.yH)],['頂層橫桿至型鋼底',el2(col.free)]]);
+      rod(arm,MI.uh,24.1,[x,z-150,n],[x,col.yH-6,n]);
+      rod(arm,MI.uh,45,[x,z,n],[x,z+30,n],6);
+      box(arm,MI.uh,150,6,170,x,col.yH-3,n);
+      for(const sg of [-1,1])box(arm,MI.uh,150,50,6,x,col.yH+25,n+sg*cheek);
+    }));
+    // ledgers (every standard tied in both directions) and diagonals on the outer faces
+    for(const bay of AD.bays){
+      const A=cols[bay.a[0]],B=cols[bay.b[0]],na=L.pos[bay.a[1]],nb=L.pos[bay.b[1]];
+      const ux=B.t-A.t,uz=nb-na,len=Math.hypot(ux,uz),ex=ux/len*30,ez=uz/len*30;
+      const dir=bay.a[1]===bay.b[1]?'縱向（沿梁）':'橫向（跨梁寬）';
+      const where=`${AN}・第 ${bay.a[0]+1}列第${bay.a[1]+1}排 ↔ 第 ${bay.b[0]+1}列第${bay.b[1]+1}排`;
+      const code=`H66${String(bay.len/10).padStart(3,'0')} 橫桿 ${(bay.len/1000).toFixed(1)}m`;
+      bay.lv.forEach((y,li)=>{
+        CUR={type:'led',title:code,rows:[['位置',where],['方向',dir],['規格',SPEC.led],['長度',el2(bay.len)],
+          ['拉設高程',`${el2(y)}（第 ${li+1} 層／共 ${bay.lv.length} 層）`],
+          ['載重狀況','水平繫桿：連結主架、縮短主架挫屈長度，不承受垂直載重'],
+          ['相鄰主架軸力',`${L.legP[bay.a[0]][bay.a[1]].toFixed(3)} / ${L.legP[bay.b[0]][bay.b[1]].toFixed(3)} tf`]]};
+        rod(arm,MI.led,24.1,[A.t+ex,y,na+ez],[B.t-ex,y,nb-ez]);
+      });
+      bay.diag.forEach((dg,m)=>{
+        const y0=dg.y0,y1=dg.y1,h=1500,flip=(m+bay.a[0]+bay.a[1])%2;
+        CUR={type:'dia',title:`D6${String(bay.len/100).padStart(2,'0')}15 斜桿 ${(bay.len/1000).toFixed(1)}×1.5m`,rows:[
+          ['位置',where],['方向',dir],['規格',SPEC.dia],['尺寸',`跨距 ${el2(bay.len)} × 高 ${el2(h)}，長 ${el2(Math.hypot(bay.len,h))}`],
+          ['拉設高程',`${el2(y0)} ～ ${el2(y1)}（第 ${m+1} 層／共 ${bay.diag.length} 層）${dg.drop?'；原位置高度不足，整支下移 50 cm':''}`],
+          ['載重狀況','斜撐：提供架體側向勁度、防止扭曲變形，不計入垂直載重']]};
+        const p0=flip?[A.t+ex,y0,na+ez]:[A.t+ex,y1,na+ez],p1=flip?[B.t-ex,y1,nb-ez]:[B.t-ex,y0,nb-ez];
+        rod(arm,MI.dia,24.1,p0,p1);
+      });
+    }
+  });
+  CUR=null;
+}
+
+let model=new THREE.Group();scene.add(model);
+let labels=[];
+function addMesh(geo,m,parent){
+  const mesh=new THREE.Mesh(geo,m);mesh.userData.info=CUR;parent.add(mesh);
+  if(m!==mat.ghost){const e=new THREE.LineSegments(new THREE.EdgesGeometry(geo,20),mat.edge);parent.add(e);}
+  return mesh;
+}
+function prism(pts,width){ // pts in (u,y) mm, extruded across ±width/2 (local z)
+  const sh=new THREE.Shape(pts.map(p=>new THREE.Vector2(p[0]*S,p[1]*S)));
+  const geo=new THREE.ExtrudeGeometry(sh,{depth:width*S,bevelEnabled:false});
+  geo.translate(0,0,-width*S/2);return geo;
+}
+function dimLine(parent,a,b,dir,off,label,value){
+  // a,b: Vector3 (m, in parent frame). dir: offset direction unit vector
+  const o=dir.clone().multiplyScalar(off*S);
+  const A=a.clone().add(o),B=b.clone().add(o);
+  const tick=dir.clone().multiplyScalar(0.15);
+  const pts=[a,A.clone().add(tick),b,B.clone().add(tick),A,B];
+  const g=new THREE.BufferGeometry().setFromPoints(pts);
+  const ln=new THREE.LineSegments(g,mat.dim);ln.renderOrder=10;parent.add(ln);
+  // arrow ticks (short slashes)
+  const u=B.clone().sub(A).normalize(),sl=u.clone().add(dir).normalize().multiplyScalar(0.18);
+  const tg=new THREE.BufferGeometry().setFromPoints([A.clone().sub(sl),A.clone().add(sl),B.clone().sub(sl),B.clone().add(sl)]);
+  const tl=new THREE.LineSegments(tg,mat.dim);tl.renderOrder=10;parent.add(tl);
+  const mid=A.clone().add(B).multiplyScalar(.5);
+  labels.push({obj:parent,pos:mid,html:`<b>${label}</b>${value}`});
+}
+
+function build3D(g){
+  scene.remove(model);
+  model.traverse(o=>{if(o.geometry&&!o.geometry.userData.shared)o.geometry.dispose();});
+  model=new THREE.Group();scene.add(model);labels=[];
+  try{picked=null;$('info').hidden=true;}catch(e){}   // model rebuilt → old selection is gone
+  const R=g.R*S;
+  // ground
+  const gr=new THREE.Mesh(new THREE.CircleGeometry(g.L*S*0.85,64),mat.ground);gr.rotation.x=-Math.PI/2;gr.position.y=-0.002;gr.renderOrder=-1;model.add(gr);
+  // 各腳調整後之地面（沿梁帶狀面，寬 = 梁寬＋兩側平台＋各 50 cm）
+  for(const d of [45,135,225,315]){
+    const arm=ARMS[d];if(groundIsFlat(arm))continue;
+    const grp=new THREE.Group();grp.rotation.y=d*Math.PI/180;model.add(grp);
+    const reach=g.ext+PWE+800,half=g.w/2+PWS+500,ds=new Set([0,reach]);
+    for(const p of GROUND[arm])if(p[0]>0&&p[0]<reach)ds.add(p[0]);
+    for(let x=0;x<reach;x+=500)ds.add(x);
+    const xs=[...ds].sort((p,q)=>p-q),pos=[],idx=[];
+    xs.forEach((x,i)=>{const y=groundAt(arm,x)*S+0.003;pos.push((g.R+x)*S,y,-half*S,(g.R+x)*S,y,half*S);if(i)idx.push(2*i-2,2*i-1,2*i,2*i-1,2*i+1,2*i);});
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.setIndex(idx);geo.computeVertexNormals();
+    CUR={type:'conc',title:`${arm} 腳 地面`,rows:[['地面線',GROUND[arm].map(p=>`${fmt(p[0])}：${(p[1]>0?'+':'')+fmt(p[1])}`).join('／')+'（距原點：高程 mm）'],['編輯','點選剖面圖地面線調整']]};
+    const m=new THREE.Mesh(geo,mat.gstrip);m.userData.info=CUR;grp.add(m);CUR=null;
+  }
+  // shaft
+  // shaft extends automatically from ground up to the beam top (⑥+③)
+  CUR={type:'conc',title:'井桶',rows:[['尺寸',`φ${fmt(g.D)}，地面至梁頂 ${fmt(g.top)} mm`],['混凝土量',`${(Math.PI*g.R*g.R*g.top/1e9).toFixed(2)} m³`],['說明','十字梁位於井桶範圍內之荷重由井桶承受']]};
+  const sh=new THREE.CylinderGeometry(R,R,g.top*S,64);sh.translate(0,g.top*S/2,0);addMesh(sh,mat.shaft,model);
+  CUR=null;
+  if($('tGhost').checked&&P.q6>0){const gh=new THREE.CylinderGeometry(R,R,P.q6*S,64,1,true);gh.translate(0,-P.q6*S/2,0);addMesh(gh,mat.ghost,model);}
+  CUR={type:'conc',title:'十字梁（單一梁臂）',rows:[['尺寸',`寬 ${fmt(g.w)}，內緣深 ${fmt(g.d3)}，外緣深 ${fmt(g.d4)}，突出 ${fmt(g.ext)} mm`],
+    ['梁臂載重',`D/L ${(LAY.conc||0).toFixed(2)} + 衝擊 ${(LAY.imp||0).toFixed(2)} + L/L ${(LAY.live||0).toFixed(2)} = ${(LAY.armLoad||0).toFixed(2)} tf`],
+    ['支撐',LAY.ok?`${LAY.k} 排 × ${LAY.n} 列 = ${LAY.k*LAY.n} 支主架`:'—']]};
+  // beam A (full length)
+  const bL=g.bot(g.L/2);
+  const full=[[-g.L/2,g.top],[-g.L/2,bL],[-g.R,g.h],[g.R,g.h],[g.L/2,bL],[g.L/2,g.top]];
+  const beamA=new THREE.Group();beamA.rotation.y=Math.PI/4;model.add(beamA);
+  addMesh(prism(full,g.w),mat.beam,beamA);
+  // beam B arms (outside beam A's width)
+  const beamB=new THREE.Group();beamB.rotation.y=-Math.PI/4;model.add(beamB);
+  const u0=g.w/2;
+  const arm=[[u0,g.top],[u0,g.bot(u0)]];if(g.R>u0)arm.push([g.R,g.h]);arm.push([g.L/2,bL],[g.L/2,g.top]);
+  for(const sg of [1,-1]){const grp=new THREE.Group();grp.rotation.y=sg>0?0:Math.PI;beamB.add(grp);addMesh(prism(arm,g.w),mat.beam,grp);}
+  // pedestals (4)
+  const pedTop=g.top+P.q4;
+  const ped=[[g.pIn,g.top],[g.pOut,g.top],[g.pIn+P.q2,pedTop],[g.pIn,pedTop]];
+  CUR={type:'conc',title:'塔腳墩座',rows:[['尺寸',`底長 ${fmt(P.q1)}，頂長 ${fmt(P.q2)}，寬 ${fmt(P.q3)}，高 ${fmt(P.q4)} mm`],['混凝土量',`${((P.q1+P.q2)/2*P.q4*P.q3/1e9).toFixed(2)} m³／座`],['支撐計算','不計入（墩座另行澆置，重量不由梁底支撐架承受）']]};
+  for(const a of [45,135,225,315]){const grp=new THREE.Group();grp.rotation.y=a*Math.PI/180;model.add(grp);if(P.q1>0&&P.q3>0&&P.q4>0)addMesh(prism(ped,P.q3),mat.ped,grp);}
+  CUR=null;
+  if($('tForm').checked) buildForm(g,model);
+  if($('tShore').checked) buildShore(g,LAY,model);
+  // dimensions (in beam A frame, on its front face plane)
+  if($('tDims').checked){
+    const V=(u,y,z)=>new THREE.Vector3(u*S,y*S,(z||0)*S);
+    const fz=g.w/2;const up=new THREE.Vector3(0,1,0),fwd=new THREE.Vector3(0,0,1),rt=new THREE.Vector3(1,0,0),lf=new THREE.Vector3(-1,0,0),dn=new THREE.Vector3(0,-1,0);
+    dimLine(beamA,V(-g.L/2,pedTop,fz),V(g.L/2,pedTop,fz),up,800,'⑦',fmt(g.L));
+    dimLine(beamA,V(g.L/2,bL,fz),V(g.L/2,g.top,fz),rt,700,'④',fmt(g.d4));
+    dimLine(beamA,V(g.R,g.h,fz),V(g.R,g.top,fz),lf,700,'③',fmt(g.d3));
+    dimLine(beamA,V(g.R,0,fz),V(g.R,g.h,fz),lf,700,'⑥',fmt(g.h));
+    dimLine(beamA,V(g.R,bL<g.h?g.h:g.h,fz),V(g.L/2,g.h,fz),dn,600,'②',fmt(g.ext));
+    dimLine(beamA,V(-g.R,0,0),V(g.R,0,0),fwd,g.R+900,'①φ',fmt(g.D));
+    dimLine(beamA,V(-g.L/2,g.top,-g.w/2),V(-g.L/2,g.top,g.w/2),lf,700,'⑤',fmt(g.w));
+  }
+  // clipping
+  const planes=$('tClip').checked?[clipPlane]:[];
+  for(const m of solids)m.clippingPlanes=planes;
+  // section plane follows beam A's vertical centre plane
+  const n=new THREE.Vector3(0,0,-1).applyAxisAngle(new THREE.Vector3(0,1,0),Math.PI/4);
+  clipPlane.normal.copy(n);clipPlane.constant=0;
+  // label elements
+  // 腳編號（a 右下起順時針）
+  for(const d of [45,135,225,315]){
+    const grp=new THREE.Group();grp.rotation.y=d*Math.PI/180;model.add(grp);
+    labels.push({obj:grp,pos:new THREE.Vector3((g.L/2+PWE+700)*S,(g.top+300)*S,0),html:ARMS[d],cls:'lblArm'});
+  }
+  $('labels').innerHTML=labels.map((l,i)=>`<div class="lbl ${l.cls||''}" id="lb${i}">${l.html}</div>`).join('');
+  labels.forEach((l,i)=>l.el=$('lb'+i));
+}
+
+function fitView(){
+  const g=derive();const span=Math.max(g.L,g.top+P.q4)*S;
+  const tgt=new THREE.Vector3(0,(g.top)*S*0.55,0);
+  controls.target.copy(tgt);
+  const dir=new THREE.Vector3(1,0.6,1.25).normalize();
+  const dist=span*0.62/Math.tan(camera.fov*Math.PI/360)/Math.min(1,camera.aspect)+span*0.2;
+  camera.position.copy(tgt).addScaledVector(dir,dist);
+  camera.near=span/500;camera.far=span*50;camera.updateProjectionMatrix();controls.update();
+}
+
+function resize(){const w=view.clientWidth,h=view.clientHeight;renderer.setSize(w,h,false);renderer.domElement.style.width=w+'px';renderer.domElement.style.height=h+'px';camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(view);
+
+const tmp=new THREE.Vector3();
+function loop(){
+  requestAnimationFrame(loop);controls.update();
+  renderer.setClearColor(new THREE.Color(css('--view')||'#e9edf2'));
+  renderer.render(scene,camera);
+  const w=view.clientWidth,h=view.clientHeight;
+  for(const l of labels){
+    tmp.copy(l.pos);l.obj.localToWorld(tmp);tmp.project(camera);
+    const vis=tmp.z<1&&Math.abs(tmp.x)<1.1&&Math.abs(tmp.y)<1.1;
+    l.el.style.display=vis?'':'none';
+    if(vis){l.el.style.left=((tmp.x+1)/2*w)+'px';l.el.style.top=((1-tmp.y)/2*h)+'px';}
+  }
+}
+
+function update(){
+  const g=derive();
+  $('p7').innerHTML=fmt(g.L)+' <span class="unit">mm</span>';
+  LAY=layout(g);
+  validate(g);
+  if(LAY.warn.length){const w=$('warn');w.innerHTML+=(w.innerHTML?'<br>':'')+[...new Set(LAY.warn)].join('<br>');}
+  drawPlan(g);drawSect(g,'sectAC','a','c');drawSect(g,'sectBD','b','d');drawForm(g);quantities(g);formQty(g);shoreQty(g,LAY);build3D(g);
+  try{localStorage.setItem(STORE,JSON.stringify({...P,hsel:HSEL,ground:GROUND}));}catch(e){}
+  // legend: colour → item, with quantity for all 4 arms
+  let lg='';
+  if($('tShore').checked&&LAY.ok){
+    lg+='<div class="t">支撐架（搭設由下而上）</div>';
+    for(const k of ['jack','sock','flat','std','sub','uh','led','dia'])if(LAY.cntT[k])
+      lg+=`<div><i style="background:${ITEM[k].c}"></i>${ITEM[k].n}<span class="c">${fmt(LAY.cntT[k])} 支</span></div>`;
+  }
+  if($('tForm').checked){
+    lg+='<div class="t">梁底模</div>';
+    for(const k of ['hb','tim','ply'])lg+=`<div><i style="background:${ITEM[k].c}"></i>${ITEM[k].n}</div>`;
+  }
+  const wasOpen=$('legend').querySelector('details');
+  $('legend').innerHTML=lg?`<details ${!wasOpen||wasOpen.open?'open':''}><summary style="cursor:pointer;font-weight:700">圖例</summary>${lg}</details>`:'';
+  const now=new Date(),p2=n=>String(n).padStart(2,'0');
+  $('lastRun').textContent=LAY&&LAY.ok?`最後配置 ${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}：每梁臂 ${LAY.k} 排 × ${LAY.n} 列；縱向 ${LAY.along.gaps.map(fmt).join('/')}；橫向 ${LAY.across.gaps.map(fmt).join('/')}；${LAY.H.n}；角材 @${fmt(LAY.joistPitch)}；單支最大 ${LAY.Pmax.toFixed(3)} / ${LAY.Pallow.toFixed(3)} tf`:'';
+}
+for(const id of ['tDims','tClip','tGhost','tForm','tShore'])$(id).addEventListener('change',update);
+$('fit').onclick=fitView;
+// ---------- 地面高程編輯（點選剖面圖地面線開啟）----------
+let gArm='a',gDraft=[];
+function gRender(){
+  const g=derive();
+  $('gRows').innerHTML=gDraft.map((p,i)=>`<tr><td><input type="number" step="100" data-i="${i}" data-k="0" value="${p[0]}" ${i===0?'readonly title="原點固定為 0"':''}></td><td><input type="number" step="50" data-i="${i}" data-k="1" value="${p[1]}"></td><td>${i===0?'':`<button data-del="${i}" aria-label="刪除此點">✕</button>`}</td></tr>`).join('');
+  const z0=gDraft.slice().sort((p,q)=>p[0]-q[0])[0][1];
+  $('gClr').value=Math.round(g.h-z0);gClrDirty=false;
+  $('gClrNote').textContent=`目前原點高程 ${(z0>0?'+':'')+fmt(z0)} mm；⑥ 梁內緣距原地面 ${fmt(g.h)} mm。輸入新淨高後按「垂直調整」，整條地面線一起上下平移。`;
+}
+function openGround(arm){
+  gArm=arm;gDraft=(GROUND[arm]||[[0,0]]).map(p=>[...p]).sort((p,q)=>p[0]-q[0]);
+  if(gDraft[0][0]!==0)gDraft.unshift([0,groundAt(arm,0)]);
+  $('gTag').textContent=arm;$('gTitle').textContent=`${arm} 腳 地面高程調整`;
+  gRender();$('gdlg').hidden=false;$('gClr').focus();
+}
+const gClose=()=>{$('gdlg').hidden=true;};
+$('gRows').addEventListener('input',e=>{const t=e.target;if(t.dataset.i===undefined)return;const v=parseFloat(t.value);if(isFinite(v))gDraft[+t.dataset.i][+t.dataset.k]=v;});
+$('gRows').addEventListener('change',()=>gRender());
+$('gRows').addEventListener('click',e=>{const i=e.target.dataset&&e.target.dataset.del;if(i!==undefined){gDraft.splice(+i,1);gRender();}});
+$('gAdd').onclick=()=>{const last=gDraft.reduce((m,p)=>Math.max(m,p[0]),0);gDraft.push([last+1500,gDraft.at(-1)[1]]);gRender();};
+$('gFlat').onclick=()=>{gDraft=[[0,0]];gRender();};
+// 淨高欄：輸入即生效（按鈕、Enter、離開欄位或直接按「套用」皆會平移整條地面線）
+let gClrDirty=false;
+$('gClr').addEventListener('input',()=>{gClrDirty=true;});
+const gShiftNow=()=>{if(!gClrDirty)return;gClrDirty=false;const g=derive(),v=parseFloat($('gClr').value);if(!isFinite(v))return;const z0=gDraft.slice().sort((p,q)=>p[0]-q[0])[0][1],dz=(g.h-v)-z0;if(Math.abs(dz)<0.5)return;gDraft=gDraft.map(p=>[p[0],Math.round(p[1]+dz)]);gRender();};
+$('gShift').onclick=()=>{gClrDirty=true;gShiftNow();};
+$('gClr').addEventListener('change',gShiftNow);
+$('gClr').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();gShiftNow();}});
+const gApply=arms=>{
+  // 讀取表格目前輸入值（避免未離開欄位時尚未寫入），並套用淨高欄
+  for(const inp of $('gRows').querySelectorAll('input[data-i]')){const v=parseFloat(inp.value);if(isFinite(v))gDraft[+inp.dataset.i][+inp.dataset.k]=v;}
+  gShiftNow();
+  const pts=gDraft.filter(p=>isFinite(p[0])&&isFinite(p[1])&&p[0]>=0).sort((p,q)=>p[0]-q[0]);if(!pts.length||pts[0][0]!==0)pts.unshift([0,0]);for(const a of arms)GROUND[a]=pts.map(p=>[...p]);gClose();update();};
+$('gOk').onclick=()=>gApply([gArm]);
+$('gAll').onclick=()=>gApply(['a','b','c','d']);
+$('gCancel').onclick=gClose;$('gX').onclick=gClose;
+$('gdlg').addEventListener('click',e=>{if(e.target===$('gdlg'))gClose();});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('gdlg').hidden)gClose();});
+// 樹種選單（NLMA 木構造規範）：選擇後填入 E、Fb、Fv
+for(const [sel,keys] of [['woodB',['z19','z17','z18']],['woodT',['z14','z12','z13']]]){
+  const s=$(sel);s.innerHTML='<option value="">自訂</option>'+WOODS.map((w,i)=>`<option value="${i}">${w[0]}</option>`).join('');
+  const sync=()=>{const i=WOODS.findIndex(w=>keys.every((k,q)=>Math.abs(P[k]-w[q+1])<1e-9));s.value=i<0?'':String(i);};
+  sync();
+  s.addEventListener('change',()=>{if(s.value==='')return;const w=WOODS[+s.value];keys.forEach((k,q)=>{P[k]=w[q+1];$(k).value=w[q+1];});update();});
+  for(const k of keys)$(k).addEventListener('input',sync);
+  $('reset').addEventListener('click',sync);
+}
+// ---------- click a member → show its info ----------
+const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
+const HL=new THREE.MeshStandardMaterial({color:0xfff200,emissive:0xffd400,emissiveIntensity:.6,roughness:.4});
+let picked=null,downXY=null;
+function clearPick(){
+  if(picked){model.traverse(o=>{if(o.isMesh&&o.userData.orig){o.material=o.userData.orig;delete o.userData.orig;}});}
+  picked=null;$('info').hidden=true;
+}
+function showInfo(info,cx,cy){
+  const col=ITEM[info.type]?ITEM[info.type].c:'#b9bec7';
+  $('info').innerHTML=`<div class="hd"><i style="background:${col}"></i>${info.title}<button id="infoX" aria-label="關閉">×</button></div>`+
+    `<table>${info.rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>`;
+  const box=$('info'),W=view.clientWidth,Hh=view.clientHeight;box.hidden=false;
+  const bw=box.offsetWidth,bh=box.offsetHeight;
+  box.style.left=Math.max(10,Math.min(cx+14,W-bw-10))+'px';
+  box.style.top=Math.max(54,Math.min(cy+14,Hh-bh-10))+'px';
+  $('infoX').onclick=clearPick;
+}
+renderer.domElement.addEventListener('pointerdown',e=>{downXY=[e.clientX,e.clientY];});
+renderer.domElement.addEventListener('pointerup',e=>{
+  if(!downXY||Math.hypot(e.clientX-downXY[0],e.clientY-downXY[1])>5)return;   // drag = orbit, not a pick
+  const r=renderer.domElement.getBoundingClientRect();
+  mouse.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);
+  ray.setFromCamera(mouse,camera);
+  const hits=ray.intersectObjects(model.children,true).filter(h=>h.object.isMesh&&h.object.userData.info&&h.object.visible);
+  // respect the section cut
+  const hit=hits.find(h=>!$('tClip').checked||clipPlane.distanceToPoint(h.point)>=0);
+  clearPick();
+  if(!hit)return;
+  picked=hit.object.userData.info;
+  model.traverse(o=>{if(o.isMesh&&o.userData.info===picked){o.userData.orig=o.material;o.material=HL;}});
+  showInfo(picked,e.clientX-r.left,e.clientY-r.top);
+});
+addEventListener('keydown',e=>{if(e.key==='Escape')clearPick();});
+$('recalc').onclick=()=>{ // re-read every input box, then recalculate and re-layout
+  for(const k of KEYS){const v=parseFloat($(k).value);if(isFinite(v)&&v>=0)P[k]=v;}
+  HSEL=$('hsel').value;update();
+};
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',update);
+
+resize();update();fitView();loop();
+</script>
+</body>
+</html>
