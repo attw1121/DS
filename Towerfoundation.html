@@ -421,7 +421,8 @@ function drawSect(g,id,left,right){
       for(const bay of AD.bays){ if(bay.a[1]!==0||bay.b[1]!==0)continue;
         const A=cols[bay.a[0]],B=cols[bay.b[0]];
         for(const y of bay.lv) el('line',{x1:X(sg*A.t),y1:Y(y),x2:X(sg*B.t),y2:Y(y),style:`stroke:${sc};stroke-width:.6;opacity:.8`},svg);
-        bay.diag.forEach((d,m)=>{const f=(m+bay.a[0])%2;el('line',{x1:X(sg*A.t),y1:Y(f?d.y0:d.y1),x2:X(sg*B.t),y2:Y(f?d.y1:d.y0),style:`stroke:${ITEM.dia.c};stroke-width:.7`},svg);});
+        // 斜桿統一由下往上朝向左側：圖面中較左之端點為高端
+        bay.diag.forEach(d=>{const xa=X(sg*A.t),xb=X(sg*B.t),aHigh=d.hiSide?d.hiSide==='a':xa<xb;el('line',{x1:xa,y1:Y(aHigh?d.y1:d.y0),x2:xb,y2:Y(aHigh?d.y0:d.y1),style:`stroke:${ITEM.dia.c};stroke-width:.7`},svg);});
       }
     }
   }
@@ -694,6 +695,14 @@ function layout(g){
       bay.L0=Math.max(A.B,C.B);
       bay.lv=levels(bay.L0,Math.min(A.topRing,C.topRing));
       if(A.subRing&&C.subRing&&Math.abs(A.subRing-C.subRing)<1)bay.lv.push(A.subRing);
+      // 最末端圓盤：若相鄰主架於同高度亦有圓盤，則以橫桿連結
+      const ringsOf=c=>{if(c.rings)return c.rings;const R=[c.B];let z=c.stdBot;
+        for(const p of c.pieces){if(p.type==='sub')R.push(z+p.len-100);else for(let r=400;r<p.len;r+=500)R.push(z+r);z+=p.len;}
+        return c.rings=R;};
+      const hasRing=(c,h)=>ringsOf(c).some(v=>Math.abs(v-h)<1);
+      for(const [X,Y] of [[A,C],[C,A]]){const h=Math.max(...ringsOf(X));
+        if(hasRing(Y,h)&&!bay.lv.some(v=>Math.abs(v-h)<1)){bay.lv.push(h);bay.endLed=true;}}
+      bay.lv.sort((p,q)=>p-q);
       add(ledName(bay.len),bay.lv.length,'led');bay.diag=[];bay.br=false;
     }
     for(const col of cols)col.topLed=-Infinity;
@@ -720,10 +729,21 @@ function layout(g){
       const hgt=(Math.max(A.yH,C.yH)-Math.max(A.stdBot,C.stdBot))/1000;
       const usable=Math.max(0,1+Math.floor((Math.max(A.frameTop,C.frameTop)-bay.L0-1000+1e-4)/1500));
       const m=Math.min(countDiagonal(hgt),usable);
+      // 末端（最上層）斜桿：兩側主架高度不同時，高端轉向較高之主架
+      const diff=Math.abs(A.frameTop-C.frameTop)>1,tall=Math.max(A.frameTop,C.frameTop),short=Math.min(A.frameTop,C.frameTop);
       for(let q=0;q<m;q++){
-        let lo=bay.L0+q*1500,hi=lo+1500;
-        const drop=(hi>Math.min(A.frameTop,C.frameTop)+1e-3)?500:0;lo-=drop;hi-=drop;
-        bay.diag.push({y0:lo,y1:hi,drop});add(diagName(bay.len),1,'dia');
+        let lo=bay.L0+q*1500,hi=lo+1500,hiSide=null,drop;
+        if(q===m-1&&diff){
+          // 末端：兩側同高層皆有圓盤 → 依單、雙數排規則；僅較高主架有圓盤 → 高端轉向較高主架
+          const has=(c,h)=>c.rings.some(v=>Math.abs(v-h)<1),T=A.frameTop>C.frameTop?A:C,Sh=T===A?C:A;
+          drop=500;
+          for(const dd of [0,500]){const l=lo-dd,h=hi-dd;
+            if(has(A,l)&&has(C,l)&&has(A,h)&&has(C,h)){drop=dd;hiSide=null;break;}
+            if(has(Sh,l)&&has(T,h)){drop=dd;hiSide=T===A?'a':'b';break;}}
+        }
+        else drop=(hi>short+1e-3)?500:0;
+        lo-=drop;hi-=drop;
+        bay.diag.push({y0:lo,y1:hi,drop,hiSide});add(diagName(bay.len),1,'dia');
       }
     }
     arms[a]={cols,bays,units,cnt:cur.cnt,cntT:cur.cntT};cur=null;
@@ -1036,12 +1056,20 @@ function buildShore(g,L,parent){
         rod(arm,MI.led,24.1,[A.t+ex,y,na+ez],[B.t-ex,y,nb-ez]);
       });
       bay.diag.forEach((dg,m)=>{
-        const y0=dg.y0,y1=dg.y1,h=1500,flip=(m+bay.a[0]+bay.a[1])%2;
+        // 斜桿方向（視向與剖面圖一致）：
+        //  縱向：單數排（第 1、3、5…排）由右下往左上；雙數排由左下往右上
+        //        「朝左」：a、b 腳（剖面圖左側）高端在外側（B），c、d 腳（右側）高端在井桶側（A）
+        //  橫向（X、Y 向相同規則）：單數列由右下往左上；雙數列由左下往右上
+        //        「朝左」：自梁端朝井桶方向看，左側為 n 較大之排（B）
+        const y0=dg.y0,y1=dg.y1,h=1500,along=bay.a[1]===bay.b[1];
+        const leftUpB=along?(ARMS[a]==='a'||ARMS[a]==='b'):true;
+        const oddLine=((along?bay.a[1]:bay.a[0])+1)%2===1;          // 縱向依排、橫向依列
+        const bHigh=dg.hiSide?dg.hiSide==='b':(oddLine?leftUpB:!leftUpB);
         CUR={type:'dia',title:`D6${String(bay.len/100).padStart(2,'0')}15 斜桿 ${(bay.len/1000).toFixed(1)}×1.5m`,rows:[
-          ['位置',where],['方向',dir],['規格',SPEC.dia],['尺寸',`跨距 ${el2(bay.len)} × 高 ${el2(h)}，長 ${el2(Math.hypot(bay.len,h))}`],
+          ['位置',where],['方向',dir+'；'+(along?'第 '+(bay.a[1]+1)+' 排':'第 '+(bay.a[0]+1)+' 列')+(dg.hiSide?'：末端兩側主架高度不同，高端轉向較高主架（'+(dg.hiSide==='b'?'第 '+(bay.b[0]+1)+'列第'+(bay.b[1]+1)+'排':'第 '+(bay.a[0]+1)+'列第'+(bay.a[1]+1)+'排')+'）':(oddLine?'（單數）：右下 → 左上':'（雙數）：左下 → 右上'))],['規格',SPEC.dia],['尺寸',`跨距 ${el2(bay.len)} × 高 ${el2(h)}，長 ${el2(Math.hypot(bay.len,h))}`],
           ['拉設高程',`${el2(y0)} ～ ${el2(y1)}（第 ${m+1} 層／共 ${bay.diag.length} 層）${dg.drop?'；原位置高度不足，整支下移 50 cm':''}`],
           ['載重狀況','斜撐：提供架體側向勁度、防止扭曲變形，不計入垂直載重']]};
-        const p0=flip?[A.t+ex,y0,na+ez]:[A.t+ex,y1,na+ez],p1=flip?[B.t-ex,y1,nb-ez]:[B.t-ex,y0,nb-ez];
+        const p0=[A.t+ex,bHigh?y0:y1,na+ez],p1=[B.t-ex,bHigh?y1:y0,nb-ez];
         rod(arm,MI.dia,24.1,p0,p1);
       });
     }
