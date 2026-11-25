@@ -483,13 +483,14 @@ const TOLM=1e-6;
 const LED=[600,900,1200,1500,1800,2400];                       // 具 1.5m 斜桿之橫桿跨距
 // 品項與顏色（3D 圖示及圖例共用）
 const ITEM={
+  lowb:{n:'下底座 J60350',c:'#8a9a1e'},
   jack:{n:'下調整座 J63601',c:'#3f4650'}, sock:{n:'標準基座 V62020',c:'#8e5bd6'},
   flat:{n:'平主架 V60xxx',c:'#12a39a'},   std:{n:'主架 V61xxx',c:'#2f6fd6'},
   sub:{n:'輔助桿 V62025/V62050',c:'#e0459a'}, uh:{n:'上調整座 U63601',c:'#d93a3a'},
   led:{n:'橫桿 H66xxx',c:'#62c23a'},       dia:{n:'斜桿 D6xxxx',c:'#f39a1e'},
   hb:{n:'H型鋼',c:'#4b6a88'}, tim:{n:'角材',c:'#a8733c'}, ply:{n:'模板（合板）',c:'#e0b36a'}
 };
-const PIECE=(len,type)=>({len,type,name:type==='flat'?`V60${len/10} 平主架 ${(len/1000).toFixed(1)}m`:type==='std'?`V61${len/10} 主架 ${(len/1000).toFixed(1)}m`:`V620${len===250?'25':'50'} 輔助桿 ${(len/1000).toFixed(2).replace(/0$/,'')}m`});
+const PIECE=(len,type)=>({len,type,name:type==='lowb'?'J60350 下底座 0.35m':type==='flat'?`V60${len/10} 平主架 ${(len/1000).toFixed(1)}m`:type==='std'?`V61${len/10} 主架 ${(len/1000).toFixed(1)}m`:`V620${len===250?'25':'50'} 輔助桿 ${(len/1000).toFixed(2).replace(/0$/,'')}m`});
 // H 型鋼強軸斷面（含 4 處根部圓角，同 DS-main tower-foundation.js steelSection）：cm⁴、cm³
 function hProps(H){
   const r=(H.H>=300||H.B>=175?13:8)/10,h=H.H/10,b=H.B/10,tw=H.tw/10,tf=H.tf/10,hw=h-2*tf,fc=(h-tf)/2;
@@ -639,26 +640,50 @@ function layout(g){
   grids.sort((a,b)=>b.x.nominal-a.x.nominal||avg(b.x)-avg(a.x)||a.legCount-b.legCount||a.joistSpans-b.joistSpans||b.y.nominal-a.y.nominal);
   // ---- 高度組立：各腳依其地面線（GROUND，原點＝與井桶相交處）；同一腳內下調整座伸出量取同一圓盤相位，使相鄰主架圓盤同高 ----
   const uMin=P.z10,uMax=Math.max(P.z10,P.z11),JMIN=80,JMAX=450;
+  // 下底座 J60350（全高 350、圓盤距底 250）：支撐淨高（地面至型鋼底）< 1.25 m，或常規組合無法組立時使用，上接輔助桿
+  const LOWH=1250,LOWC=[[250],[500],[250,250],[500,250]];
+  const lowCombo=clear=>{let best=null;
+    for(const c of LOWC){const top=350+c.reduce((s,v)=>s+v,0),u=clear-top;if(u<uMin-0.5||u>uMax+0.5)continue;
+      if(!best||top>best.top||(top===best.top&&c.length<best.c.length))best={c,top,u};}
+    return best;};
   const buildCols=(x,arm)=>{
-    const gz=x.positions.map(d=>groundAt(arm,d));
-    let best=null;
-    for(let ph=0;ph<500;ph+=5){
-      const bs=gz.map(z=>{let v=(((ph-z)%500)+500)%500;while(v<JMIN)v+=500;return v;});
-      if(bs.every(v=>v<=JMAX)){const dev=Math.max(...bs.map(v=>Math.abs(v-P.z6)));if(!best||dev<best.dev-1e-9)best={bs,dev};}
+    const gz=x.positions.map(d=>groundAt(arm,d)),yHs=x.positions.map(d=>soffit(d)-layerDepth);  // 同 ACT：垂直扣除模板＋角材＋型鋼
+    const low=gz.map((z,i)=>yHs[i]-z<LOWH);
+    for(let pass=0;pass<=x.positions.length;pass++){
+      // 下底座圓盤高程固定（地面+250）：常規柱之下調整座相位對齊該圓盤
+      const lt=[...new Set(gz.filter((z,i)=>low[i]).map(z=>Math.round((((z+250)%500)+500)%500)%500))];
+      const search=phs=>{let best=null;
+        for(const ph of phs){
+          const bs=gz.map(z=>{let v=(((ph-z)%500)+500)%500;while(v<JMIN)v+=500;return v;});
+          if(bs.every((v,i)=>low[i]||v<=JMAX)){const dev=Math.max(0,...bs.filter((v,i)=>!low[i]).map(v=>Math.abs(v-P.z6)));if(!best||dev<best.dev-1e-9)best={bs,dev};}
+        }return best;};
+      const all=[...Array(100).keys()].map(q=>q*5);
+      let best=lt.length===1?search([((lt[0]-100)%500+500)%500]):null,matched=!!best||(lt.length===0);
+      if(!best)best=search(all);
+      if(lt.length>1)matched=false;
+      const bs=best?best.bs:gz.map(()=>P.z6);
+      const cols=[];let retry=false;
+      for(let i=0;i<x.positions.length;i++){
+        const d=x.positions[i],z=gz[i],yH=yHs[i];
+        if(!low[i]){
+          const bj=bs[i],B=z+bj+100,stdBot=z+bj+200,ext=yH-stdBot;        // 標準基座圓盤距底 10 cm；伸出量量至 U 型座頂
+          const T=Math.max(0,Math.floor((ext-uMin)/250)*250),S=Math.floor(T/500)*500,sub=T-S,u=ext-T;
+          if(S<1000||u>uMax+0.5){if(lowCombo(yH-z)){low[i]=true;retry=true;continue;}return null;}
+          const pieces=stdCombo(S);if(sub)pieces.push(PIECE(250,'sub'));
+          // 主架圓盤距底 40 cm、間距 50 cm → 頂圓盤 = B+S；輔助桿圓盤在其頂下 10 cm → B+S+輔助桿長
+          cols.push({t:g.R+d,d,gz:z,b:bj,B,stdBot,yH,S,pieces,u,sub,topRing:B+S,subRing:sub?B+S+sub:null,frameTop:stdBot+S+sub});
+        }else{
+          const lc=lowCombo(yH-z);if(!lc)return null;
+          const sub=lc.c.reduce((s,v)=>s+v,0),B=z+250;
+          const pieces=[PIECE(350,'lowb'),...lc.c.map(l=>PIECE(l,'sub'))];
+          cols.push({t:g.R+d,d,gz:z,b:0,B,stdBot:z,yH,S:0,pieces,u:lc.u,sub,low:true,topRing:B,subRing:null,frameTop:z+lc.top});
+        }
+      }
+      if(retry)continue;
+      cols.aligned=!!best&&matched;
+      return cols;
     }
-    const bs=best?best.bs:gz.map(()=>P.z6);
-    const cols=[];
-    for(let i=0;i<x.positions.length;i++){
-      const d=x.positions[i],z=gz[i],bj=bs[i],B=z+bj+100,stdBot=z+bj+200;   // 標準基座圓盤距底 10 cm
-      const yH=soffit(d)-layerDepth, ext=yH-stdBot;                       // 同 ACT：垂直扣除模板＋角材＋型鋼；伸出量量至 U 型座頂
-      const T=Math.max(0,Math.floor((ext-uMin)/250)*250),S=Math.floor(T/500)*500,sub=T-S,u=ext-T;
-      if(S<1000||u>uMax+0.5)return null;
-      const pieces=stdCombo(S);if(sub)pieces.push(PIECE(250,'sub'));
-      // 主架圓盤距底 40 cm、間距 50 cm → 頂圓盤 = B+S；輔助桿圓盤在其頂下 10 cm → B+S+輔助桿長
-      cols.push({t:g.R+d,d,gz:z,b:bj,B,stdBot,yH,S,pieces,u,sub,topRing:B+S,subRing:sub?B+S+sub:null,frameTop:stdBot+S+sub});
-    }
-    cols.aligned=!!best;
-    return cols;
+    return null;
   };
   let sel=null,armCols=null;
   for(const gr of grids){
@@ -666,7 +691,7 @@ function layout(g){
     for(const a of ['a','b','c','d']){const c=buildCols(gr.x,a);if(!c){okAll=false;break;}ac[a]=c;}
     if(okAll){sel=gr;armCols=ac;break;}
   }
-  if(!sel)return fail('符合材料與載重之候選跨距中，部分腳之支撐高度無法以現有主架與調整座組立（請檢查地面高程）。');
+  if(!sel)return fail('符合材料與載重之候選跨距中，部分腳之支撐高度無法以現有主架與調整座組立（下底座組合需支撐淨高 75～150 cm；請檢查地面高程）。');
   const fa=sel.fa,k=fa.positions.length,n=sel.x.positions.length;
   const pos=fa.positions.map(v=>v-w/2);                                     // 各排橫向座標（梁中心 = 0）
   if(H.B>150)warn.push(`型鋼翼寬 ${H.B} mm 大於 U 型調整座（170×150），需另設托架。`);
@@ -686,20 +711,30 @@ function layout(g){
   for(const a of ['a','b','c','d']){
     const cols=armCols[a];cur={cnt:{},cntT:{}};
     if(!cols.aligned)warn.push(`${a} 腳地面高差使下調整座（80～450 mm）無法讓各主架圓盤同高，橫桿可能無法水平拉設，請調整地面線。`);
-    for(const col of cols){add('J63601 下調整座',k,'jack');add('V62020 標準基座',k,'sock');add(uName,k,'uh');for(const pc of col.pieces)add(pc.name,k,pc.type);}
+    for(const col of cols){if(!col.low){add('J63601 下調整座',k,'jack');add('V62020 標準基座',k,'sock');}add(uName,k,'uh');for(const pc of col.pieces)add(pc.name,k,pc.type);}
+    if(cols.some(c=>c.low))warn.push(`${a} 腳第 ${cols.map((c,i)=>c.low?i+1:0).filter(Boolean).join('、')} 列支撐淨高不足，改用下底座 J60350 上接輔助桿（無下調整座，僅以上調整座調整高度）。`);
     const bays=[],bayMap={},units=[];
     for(let i=0;i<n-1;i++)for(let j=0;j<k;j++){const bb={a:[i,j],b:[i+1,j],len:sel.x.gaps[i]};bays.push(bb);bayMap['a'+i+'_'+j]=bb;}
     for(let i=0;i<n;i++)for(let j=0;j<k-1;j++){const bb={a:[i,j],b:[i,j+1],len:fa.gaps[j]};bays.push(bb);bayMap['c'+i+'_'+j]=bb;}
     for(const bay of bays){
       const A=cols[bay.a[0]],C=cols[bay.b[0]];
       bay.L0=Math.max(A.B,C.B);
-      bay.lv=levels(bay.L0,Math.min(A.topRing,C.topRing));
-      if(A.subRing&&C.subRing&&Math.abs(A.subRing-C.subRing)<1)bay.lv.push(A.subRing);
-      // 最末端圓盤：若相鄰主架於同高度亦有圓盤，則以橫桿連結
       const ringsOf=c=>{if(c.rings)return c.rings;const R=[c.B];let z=c.stdBot;
         for(const p of c.pieces){if(p.type==='sub')R.push(z+p.len-100);else for(let r=400;r<p.len;r+=500)R.push(z+r);z+=p.len;}
         return c.rings=R;};
       const hasRing=(c,h)=>ringsOf(c).some(v=>Math.abs(v-h)<1);
+      if(A.low||C.low){
+        // 含下底座之跨：兩主架同高之圓盤拉設橫桿；兩側皆為下底座時，輔助桿僅於端部圓盤拉設
+        //（如 50+25 同高 → 拉在 75 cm 端部圓盤，50 cm 圓盤不拉）
+        bay.lv=ringsOf(A).filter(h=>hasRing(C,h));
+        if(A.low&&C.low){const keep=[A.B,C.B,Math.max(...ringsOf(A)),Math.max(...ringsOf(C))];
+          bay.lv=bay.lv.filter(h=>keep.some(v=>Math.abs(v-h)<1));}
+        if(!bay.lv.length)warn.push(`${a} 腳第 ${bay.a[0]+1}、${bay.b[0]+1} 列（下底座）無同高圓盤，橫桿無法拉設，請調整地面線。`);
+      }else{
+        bay.lv=levels(bay.L0,Math.min(A.topRing,C.topRing));
+        if(A.subRing&&C.subRing&&Math.abs(A.subRing-C.subRing)<1)bay.lv.push(A.subRing);
+      }
+      // 最末端圓盤：若相鄰主架於同高度亦有圓盤，則以橫桿連結
       for(const [X,Y] of [[A,C],[C,A]]){const h=Math.max(...ringsOf(X));
         if(hasRing(Y,h)&&!bay.lv.some(v=>Math.abs(v-h)<1)){bay.lv.push(h);bay.endLed=true;}}
       bay.lv.sort((p,q)=>p-q);
@@ -760,7 +795,8 @@ function shoreQty(g,L){
   const okc=v=>v?'<b style="color:#16a34a">OK</b>':'<b style="color:var(--warn)">NG</b>';
   const pct=(a,b)=>`${(a/b*100).toFixed(0)}%`;
   const all=Object.values(L.arms).flatMap(a=>a.cols);
-  const sc=L.sc,ys=all.map(c=>c.S),fr=Math.max(...all.map(c=>c.free));
+  const lows=all.filter(c=>c.low),ys0=all.filter(c=>!c.low).map(c=>c.S),ys=ys0.length?ys0:[0];
+  const sc=L.sc,fr=Math.max(...all.map(c=>c.free));
   const r=[
     ['單支主架容許強度（試驗值 ÷ 安全係數 ÷ 4 支腳）',`${P.z1} ÷ ${P.z2} ÷ ${LEGS} = ${L.Pallow.toFixed(3)} tf`],
     ['梁下面載重（D/L 取最大梁深 + 衝擊 + L/L）',`${L.p.toFixed(3)} tf/m²（不計塔腳墩座重量）`],
@@ -778,10 +814,11 @@ function shoreQty(g,L){
     ['　撓度',`${(sc.D*10).toFixed(2)} / ${(sc.Dc*10).toFixed(2)} mm（L/${L.ratio}）　${okc(sc.D<=sc.Dc)}`],
     ['— 主架 —','單支最大垂直荷載'],
     ['　軸向載重',`${L.Pmax.toFixed(3)} / ${L.Pallow.toFixed(3)} tf　${okc(L.Pmax<=L.Pallow)}（${pct(L.Pmax,L.Pallow)}）`],
-    ['主架組合高度',`${fmt(Math.min(...ys))} ～ ${fmt(Math.max(...ys))} mm`],
+    ['主架組合高度',ys0.length?`${fmt(Math.min(...ys))} ～ ${fmt(Math.max(...ys))} mm`:'（全部使用下底座）'],
+    ...(lows.length?[['下底座 J60350（淨高 < 1.25 m）',`${lows.length*L.k} 支；組合 ${[...new Set(lows.map(c=>c.pieces.map(q=>q.name.split(' ')[0]).join('+')))].join('、')}；淨高 ${fmt(Math.min(...lows.map(c=>c.yH-c.gz)))} ～ ${fmt(Math.max(...lows.map(c=>c.yH-c.gz)))} mm`]]:[]),
     ['橫桿層距',`${fmt(L.lift)} mm（掃地桿於標準基座圓盤）`],
     ...['a','b','c','d'].map(a=>{const cs=L.arms[a].cols;return [`${a} 腳：地面／下調整座／上調整座伸出量（各列）`,
-      `${groundIsFlat(a)?'地面 0':'地面 '+cs.map(c=>(c.gz>0?'+':'')+fmt(c.gz)).join('、')}；下 ${[...new Set(cs.map(c=>fmt(c.b)))].join('、')}；上 ${cs.map(c=>fmt(c.u)).join('、')} mm`];}),
+      `${groundIsFlat(a)?'地面 0':'地面 '+cs.map(c=>(c.gz>0?'+':'')+fmt(c.gz)).join('、')}；下 ${[...new Set(cs.map(c=>c.low?'下底座':fmt(c.b)))].join('、')}；上 ${cs.map(c=>fmt(c.u)).join('、')} mm`];}),
     ['上調整座伸出量限制',`${fmt(P.z10)}～${fmt(P.z11)} mm；下調整座 80～450 mm`],
     ['頂層橫桿至型鋼底（最大）',fmt(fr)+' mm'],
   ];
@@ -799,9 +836,9 @@ function armQty(g){
   const rows=[];const sec=t=>rows.push({sec:t});
   const row=(name,unit,vals,dp)=>rows.push({name,unit,vals,tot:vals.reduce((s,v)=>s+v,0),dp:dp||0});
   // 支撐架桿件（依品項順序：下調整座→標準基座→平主架→主架→輔助桿→上調整座→橫桿→斜桿）
-  const order=['jack','sock','flat','std','sub','uh','led','dia'];
+  const order=['lowb','jack','sock','flat','std','sub','uh','led','dia'];
   const keys=Object.keys(L.cnt);
-  const PFX=[['jack','J'],['sock','V62020'],['flat','V60'],['std','V61'],['sub','V6202'],['uh','U'],['led','H66'],['dia','D6']];
+  const PFX=[['lowb','J60350'],['jack','J'],['sock','V62020'],['flat','V60'],['std','V61'],['sub','V6202'],['uh','U'],['led','H66'],['dia','D6']];
   const typeOf=k=>(PFX.find(([,p])=>k.startsWith(p))||['zz'])[0];
   keys.sort((x,y)=>order.indexOf(typeOf(x))-order.indexOf(typeOf(y))||x.localeCompare(y));
   sec('支撐架桿件');
@@ -922,6 +959,7 @@ function box(parent,m,sx,sy,sz,x,y,z){ // sizes & centre in mm
 }
 // ---- member info (specs from DTL.dxf) ----
 const SPEC={
+  lowb:'鋼管 STK500 Φ60.2×T3.2（全高 350）；底鈑 140×140×T6.0；圓盤 AISI1015 Φ134×T10（圓盤中心距底 250）；淨高不足 1.25 m 時替代下調整座＋標準基座＋主架，上接輔助桿',
   jack:'牙管 STK400 Φ48.2×600×T5.0；底鈑 SS400 140×140×T6.0；扳手 FCD450',
   sock:'鋼管(大) STK500 Φ70.2×100×T4.0；鋼管(小) STK500 Φ60.2×200×T3.2；圓盤 AISI1015 Φ134×T10',
   flat:'鋼管 STK500 Φ60.2×T3.2；圓盤 AISI1015 Φ134×T10，間距 500（無連接棒）',
@@ -988,7 +1026,7 @@ function buildForm(g,parent){
   CUR=null;
 }
 const MI={};   // one material per item type, colours from ITEM
-for(const k of ['jack','sock','flat','std','sub','uh','led','dia']){MI[k]=new THREE.MeshStandardMaterial({color:new THREE.Color(ITEM[k].c),roughness:.45,metalness:.25});solids.push(MI[k]);}
+for(const k of ['lowb','jack','sock','flat','std','sub','uh','led','dia']){MI[k]=new THREE.MeshStandardMaterial({color:new THREE.Color(ITEM[k].c),roughness:.45,metalness:.25});solids.push(MI[k]);}
 MI.ring=new THREE.MeshStandardMaterial({color:0xb7bec6,roughness:.35,metalness:.6});solids.push(MI.ring);
 mat.tim.color.set(ITEM.tim.c);mat.stl.color.set(ITEM.hb.c);mat.ply.color.set(ITEM.ply.c);
 const GEO={};
@@ -1009,6 +1047,15 @@ function buildShore(g,L,parent){
     const AD=L.arms[ARMS[a]],cols=AD.cols;
     cols.forEach((col,i)=>L.pos.forEach((n,j)=>{
       const x=col.t,gz=col.gz,b=col.b,Bq=col.B,sb=col.stdBot;
+      if(col.low){
+        // 下底座 J60350：底鈑 140×140×T6、鋼管 Φ60.2 至 350、圓盤 Φ134×T10（中心距底 250）→ 上接輔助桿
+        const combo=col.pieces.map(q=>q.name.split(' ')[0]).join(' + ');
+        CUR=legInfo(L,AN,i,j,'lowb','J60350 下底座',[['使用時機',`支撐淨高 ${el2(col.yH-gz)}（扣除模板、角材及型鋼）`],
+          ['高程',`${el2(gz)} ～ ${el2(gz+350)}（圓盤 ${el2(Bq)}）`],['本柱組合',combo+' + 上調整座'],['上調整座伸出量',el2(col.u)]]);
+        box(arm,MI.lowb,140,6,140,x,gz+3,n);
+        rod(arm,MI.lowb,30.1,[x,gz+6,n],[x,gz+350,n]);
+        rod(arm,MI.ring,67,[x,Bq-5,n],[x,Bq+5,n],16);
+      }else{
       // 1 下調整座：底鈑 + 牙管 + 扳手（立於該列地面）
       CUR=legInfo(L,AN,i,j,'jack','J63601 下調整座',[['伸出量',el2(b)+'（80～450）'],['高程',`${el2(gz)} ～ ${el2(gz+b)}`]]);
       box(arm,MI.jack,140,6,140,x,gz+3,n);
@@ -1019,9 +1066,11 @@ function buildShore(g,L,parent){
       rod(arm,MI.sock,30.1,[x,gz+b,n],[x,sb,n]);
       rod(arm,MI.sock,67,[x,Bq-5,n],[x,Bq+5,n],16);
       rod(arm,MI.sock,35.1,[x,sb-10,n],[x,sb+90,n]);
+      }
       // 3 平主架 → 4 主架（圓盤距底 400、間距 500）→ 5 輔助桿（套管在下、圓盤距頂 100）
       let z=sb;
       col.pieces.forEach((p,pi)=>{
+        if(p.type==='lowb'){z+=p.len;return;}                               // 下底座已於上方繪製
         CUR=legInfo(L,AN,i,j,p.type,p.name,[
           ['長度',el2(p.len)],['高程',`${el2(z)} ～ ${el2(z+p.len)}`],
           ['本柱組合',col.pieces.map((q,qi)=>(qi===pi?'<b>':'')+q.name.split(' ')[0]+(qi===pi?'</b>':'')).join(' + ')]]);
@@ -1220,7 +1269,7 @@ function update(){
   let lg='';
   if($('tShore').checked&&LAY.ok){
     lg+='<div class="t">支撐架（搭設由下而上）</div>';
-    for(const k of ['jack','sock','flat','std','sub','uh','led','dia'])if(LAY.cntT[k])
+    for(const k of ['lowb','jack','sock','flat','std','sub','uh','led','dia'])if(LAY.cntT[k])
       lg+=`<div><i style="background:${ITEM[k].c}"></i>${ITEM[k].n}<span class="c">${fmt(LAY.cntT[k])} 支</span></div>`;
   }
   if($('tForm').checked){
