@@ -532,7 +532,11 @@ function drawSect(g,id,left,right){
   dim(svg,pt(g.R,g.top),pt(g.R,g.h),Math.min(-12,-(g.R*s)*0.35),'③',fmt(g.d3));
   dim(svg,pt(g.R,g.h),pt(g.R,0),Math.min(-12,-(g.R*s)*0.35),'⑥',fmt(g.h));
   dim(svg,pt(g.L/2,b),pt(g.L/2,g.top),-16,'④',fmt(g.d4));
-  dim(svg,pt(g.R,g.h),pt(g.L/2,b),14,'②',fmt(g.ext));
+  // ② 梁突出井桶長度：標水平距離（梁底為斜線，標註線置於較低之梁底高程下方，另一端補延伸線）
+  const yd=Math.min(g.h,b);
+  const ext=el('g',{class:'dim'},svg);
+  for(const [u,y] of [[g.R,g.h],[g.L/2,b]])if(y-yd>1)el('line',{x1:X(u),y1:Y(y)+2,x2:X(u),y2:Y(yd)},ext);
+  dim(svg,pt(g.R,yd),pt(g.L/2,yd),14,'②',fmt(g.ext));
 }
 
 // ---------- quantities / validation ----------
