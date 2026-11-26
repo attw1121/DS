@@ -120,10 +120,24 @@ details.fold>summary:hover{color:var(--ink)}
 #qtyArm tr.sec td{cursor:pointer;user-select:none}
 #qtyArm tr.sec:hover td{color:var(--ink)}
 .hint{position:absolute;left:10px;bottom:8px;color:var(--muted);font-size:12px}
+.mtabs{display:none}
 @media (max-width:860px){
-  .app{grid-template-columns:1fr;height:auto}
-  aside{border-right:none;border-bottom:1px solid var(--line)}
-  main{height:70vh}
+  /* 手機：底部分頁切換「參數／圖表」與「3D 模型」，不再上下堆疊 */
+  .app{display:block;height:auto}
+  aside{border-right:none;padding:12px 12px calc(72px + env(safe-area-inset-bottom))}
+  main{position:fixed;left:0;right:0;top:0;bottom:calc(56px + env(safe-area-inset-bottom));height:auto}
+  body:not(.m3d) main{visibility:hidden;pointer-events:none}
+  body.m3d aside{display:none}
+  .mtabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--panel);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom));gap:8px}
+  .mtabs button{flex:1;padding:10px 6px;font-size:15px;font-weight:600}
+  .mtabs button[aria-pressed="true"]{background:var(--accent2);border-color:var(--accent2);color:#fff}
+  .row{grid-template-columns:26px 1fr 110px}
+  .row input,.row select,.prjRow input,.prjRow select,.grow input,.gtbl input{font-size:16px}   /* 避免 iOS 聚焦時自動放大 */
+  button{min-height:36px}
+  .toolbar{top:8px;left:8px;right:8px;font-size:12.5px;gap:4px 10px;padding:6px 8px}
+  .legend{bottom:30px;max-height:34vh;overflow:auto;font-size:11.5px}
+  .hint{font-size:11px}
+  .info{left:8px!important;right:8px;top:auto!important;bottom:8px;width:auto;max-height:50vh;overflow:auto}
 }
 </style>
 </head>
@@ -264,8 +278,9 @@ details.fold>summary:hover{color:var(--ink)}
   <div class="legend" id="legend"></div>
   <div class="info" id="info" hidden></div>
 
-  <div class="hint">左鍵旋轉・右鍵平移・滾輪縮放</div>
+  <div class="hint" id="hint">左鍵旋轉・右鍵平移・滾輪縮放</div>
 </main>
+<nav class="mtabs" aria-label="畫面切換"><button type="button" id="mtP" aria-pressed="true">參數／圖表</button><button type="button" id="mt3" aria-pressed="false">3D 模型</button></nav>
 </div>
 
 <div class="gdlg" id="gdlg" hidden>
@@ -1431,8 +1446,7 @@ $('armCsv').onclick=()=>{
   for(const r of ARM_ROWS){if(r.sec){sec=r.sec;continue;}
     const n=v=>r.dp?v.toFixed(r.dp):String(Math.round(v));
     lines.push([q(sec),q(r.name),q(r.unit),...r.vals.map(n),/荷載|高程/.test(r.name)?'':n(r.tot)].join(','));}
-  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(PRJ?safeFile(PRJ)+'_':'Towerfoundation_')+'各腳數量.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  saveFile(['﻿'+lines.join('\r\n')],(PRJ?safeFile(PRJ)+'_':'Towerfoundation_')+'各腳數量.csv','text/csv');
 };
 // ---------- 另存 CAD 檔：產生 AutoCAD 指令稿（.scr，內含 AutoLISP）----------
 // 指令稿為純 ASCII：中文以 AutoLISP 之 \U+XXXX 跳脫，避免編碼問題。
@@ -1770,18 +1784,36 @@ class DxfDoc{
     P('0','ENDSEC','0','SECTION','2','ENTITIES');o.push(...this.ents);P('0','ENDSEC','0','EOF');
     return o.join('\r\n')+'\r\n';}
 }
+// ---------- 存檔（電腦、Android、iPhone/iPad 共用）----------
+// iPhone/iPad：開啟系統分享選單 →「儲存到檔案」可自選資料夾（iCloud 雲碟、我的 iPhone…）
+// 其他（電腦、Android）：直接下載到「下載」資料夾；若瀏覽器不支援分享則一律改用下載
+const IS_IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function saveFile(parts,name,type){
+  if(IS_IOS&&navigator.canShare){
+    try{const f=new File(parts,name,{type:'application/octet-stream'});
+      if(navigator.canShare({files:[f]})){
+        navigator.share({files:[f],title:name}).catch(e=>{if(e.name!=='AbortError')dlFile(parts,name,type);});
+        return;}
+    }catch(e){}
+  }
+  dlFile(parts,name,type);
+}
+function dlFile(parts,name,type){
+  // application/octet-stream：避免手機瀏覽器把 .dxf/.scr 當純文字直接開在分頁中
+  const blob=new Blob(parts,{type:/csv|json/.test(type)?type:'application/octet-stream'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.rel='noopener';
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},60000);
+}
 $('dxfSave').onclick=()=>{
   let dxf=null;try{dxf=cadScript('dxf');}catch(e){alert('產生 DXF 失敗：'+e.message);return;}
   if(!dxf){alert('目前沒有可用的支撐架配置，無法產生 DXF。');return;}
   const base=(CAD.out.split(/[\\/]/).pop()||'Towerfoundation_支撐架.dwg').replace(/\.dwg$/i,'');
-  const blob=new Blob([dxf],{type:'application/dxf'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=base+'.dxf';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  saveFile([dxf],base+'.dxf','application/dxf');
 };
 $('cadSave').onclick=()=>{
   const scr=cadScript();if(!scr){alert('目前沒有可用的支撐架配置，無法另存 CAD 檔。');return;}
   const base=(CAD.out.split(/[\\/]/).pop()||'Towerfoundation_支撐架.dwg').replace(/\.dwg$/i,'');
-  const blob=new Blob([scr],{type:'text/plain'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=base+'.scr';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  saveFile([scr],base+'.scr','text/plain');
 };
 // ---------- 專案資料庫 ----------
 // 1) 瀏覽器資料庫（IndexedDB：towerfoundation-db / projects，以專案名稱為鍵）
@@ -1848,7 +1880,7 @@ async function prjRender(sel){
 }
 async function dirLabel(){
   const el=$('prjDir');
-  if(!canDir){el.textContent='此瀏覽器不支援資料夾存取（請用 Chrome 或 Edge）';$('prjPick').disabled=$('prjSync').disabled=true;return;}
+  if(!canDir){el.textContent=matchMedia('(pointer:coarse)').matches?'手機瀏覽器不支援資料夾存取；請用「下載專案檔」備份，或在電腦上同步':'此瀏覽器不支援資料夾存取（請用 Chrome 或 Edge）';$('prjPick').disabled=$('prjSync').disabled=true;return;}
   if(!DIRH){el.textContent='尚未選擇（只存在瀏覽器資料庫）';$('prjSync').disabled=true;return;}
   $('prjSync').disabled=false;
   el.textContent=DIRH.name+(await dirOK(false)?'':'（需重新授權：按「同步」或「儲存專案」）');
@@ -1903,9 +1935,8 @@ $('prjSave').onclick=async()=>{
 };
 $('prjExport').onclick=()=>{
   const n=prjName();if(!n)return;PRJ=n;prjTitle();
-  const blob=new Blob([pack({name:n,t:Date.now(),d:curState()})],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fileOf(n);document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
-  prjMsg(`已下載「${fileOf(n)}」。`);
+  saveFile([pack({name:n,t:Date.now(),d:curState()})],fileOf(n),'application/json');
+  prjMsg(IS_IOS?`已開啟分享選單：請選「儲存到檔案」並選擇資料夾。`:`已下載「${fileOf(n)}」。`);
 };
 $('prjImport').onclick=()=>$('prjFile').click();
 $('prjFile').onchange=async e=>{
@@ -1934,6 +1965,19 @@ $('prjDel').onclick=async()=>{
   else if(DIRH)note='（資料夾未授權，資料夾內檔案未刪除；之後同步時會再讀回）';
   await prjRender();prjMsg(`已刪除專案「${n}」${note}。`,!!note);
 };
+// ---------- 手機版：底部分頁切換 ----------
+(()=>{
+  let y=0;
+  const set=is3d=>{
+    if(is3d===document.body.classList.contains('m3d'))return;
+    if(is3d)y=window.scrollY;
+    document.body.classList.toggle('m3d',is3d);
+    $('mt3').setAttribute('aria-pressed',is3d);$('mtP').setAttribute('aria-pressed',!is3d);
+    if(is3d)requestAnimationFrame(()=>{resize();window.scrollTo(0,0);});else requestAnimationFrame(()=>window.scrollTo(0,y));
+  };
+  $('mtP').onclick=()=>set(false);$('mt3').onclick=()=>set(true);
+  if(matchMedia('(pointer:coarse)').matches)$('hint').textContent='單指旋轉・雙指縮放／平移';
+})();
 // ---------- 地面高程編輯（點選剖面圖地面線開啟）----------
 let gArm='a',gDraft=[];
 function gRender(){
