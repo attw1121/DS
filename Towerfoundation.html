@@ -259,9 +259,9 @@ details.fold>summary:hover{color:var(--ink)}
   <div class="btns"><button id="armCsv">匯出 CSV</button></div></details>
 
   <details class="fold" data-k="cad" open><summary>另存 CAD 檔（AutoCAD DWG）</summary>
-  <div class="btns"><button id="cadSave" style="border-color:var(--accent2);color:var(--accent2);font-weight:700">另存 CAD 檔</button><button id="dxfSave" style="border-color:var(--accent2);color:var(--accent2);font-weight:700">直接產生 DXF</button></div>
+  <div class="btns"><button id="cadSave" style="border-color:var(--accent2);color:var(--accent2);font-weight:700">另存 CAD 檔</button><button id="dxfSave" style="border-color:var(--accent2);color:var(--accent2);font-weight:700">產生 DXF</button></div>
   <div class="sub" style="margin-top:6px"><b>另存 CAD 檔</b>：下載 AutoCAD 指令稿（.scr）。於 AutoCAD 2021 輸入 <b>SCRIPT</b> 選取該檔（或將檔案拖曳到 AutoCAD 視窗），即自動開新圖、插入圖塊（立面為動態圖塊，依配置設定規格與伸出量），繪製支撐架平面圖與剖面 a–c、b–d；完成後跳出「另存 DWG」對話框，由使用者選擇儲存位置與檔名。</div>
-  <div class="sub" style="margin-top:6px"><b>直接產生 DXF</b>：不需 AutoCAD，網頁直接下載 .dxf（平面圖、剖面 a–c、b–d、尺寸標註）。各桿件依規格以單獨圖塊存放（如 V61150、H66090、D61815；下調整座、U 型座依伸出量各一圖塊）。以 AutoCAD 開啟後另存即為 DWG。</div></details>
+  <div class="sub" style="margin-top:6px"><b>產生 DXF</b>：不需 AutoCAD，網頁直接下載 .dxf（平面圖、剖面 a–c、b–d、尺寸標註）。各桿件依規格以單獨圖塊存放（如 V61150、H66090、D61815；下調整座、U 型座依伸出量各一圖塊）。以 AutoCAD 開啟後另存即為 DWG。</div></details>
   <div class="sub" style="margin-top:6px">僅計大梁底模（不含側模）；設置作業平台時，模板、角材與型鋼延伸至平台外緣。合板以 3'×6'（910×1820）計片數，未含損耗。</div>
 </aside>
 <main>
@@ -1460,7 +1460,7 @@ $('armCsv').onclick=()=>{
 const lispStr=s=>'"'+[...String(s)].map(ch=>{const c=ch.codePointAt(0);
   if(ch==='"')return '\\"';if(ch==='\\')return '\\\\';if(c<32)return ' ';if(c<128)return ch;
   return '\\U+'+c.toString(16).toUpperCase().padStart(4,'0');}).join('')+'"';
-// cadScript(mode)：mode 省略＝AutoCAD 指令稿（.scr，動態圖塊）；mode='dxf'＝直接產生 DXF（靜態圖塊，取自內嵌圖塊庫）
+// cadScript(mode)：mode 省略＝AutoCAD 指令稿（.scr，動態圖塊）；mode='dxf'＝產生 DXF（靜態圖塊，取自內嵌圖塊庫）
 // 兩種輸出共用同一套配置與座標邏輯，僅輸出端（LNw／PLw／TXw／CIw／DIM／PLAN／EL…）不同。
 function cadScript(mode){
   const g=derive(),L=LAY;if(!L||!L.ok)return null;
