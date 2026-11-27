@@ -110,7 +110,8 @@ main{position:relative;background:var(--view);min-height:0}
 .mat i{width:11px;height:11px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.25)}
 .mat em{margin-left:auto;font-style:normal;font-size:11px;color:var(--muted)}
 .mat.req{cursor:default;opacity:.75}
-#matCnt{margin-left:6px;font-size:12px;color:var(--accent2)}
+#matCnt,#stkCnt{margin-left:6px;font-size:12px;color:var(--accent2)}
+.stkL{display:flex;flex-wrap:wrap;gap:0 14px}
 details.fold{border:none;border-radius:0;padding:0;margin:0}
 details.fold>summary{list-style:none;font-size:13px;margin:18px 0 8px;color:var(--muted);font-weight:600;letter-spacing:.04em;user-select:none}
 details.fold>summary::-webkit-details-marker{display:none}
@@ -133,6 +134,11 @@ details.fold>summary:hover{color:var(--ink)}
 .barS input{width:72px;text-align:right}
 .barBtns{display:flex;gap:4px;margin-left:auto}
 .barBtns button{padding:2px 8px;min-height:0}
+.barC{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 6px;margin-top:6px}
+.barC label{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--muted)}
+.barC input{width:100%;text-align:right}
+.barC input.bad{outline:2px solid var(--warn);outline-offset:-1px}
+.barCk{grid-column:1/-1;font-size:11.5px;color:var(--muted)}
 .barU{margin-left:auto;font-size:11.5px;color:var(--muted);white-space:nowrap}
 .bar.bad{border-color:var(--warn)}
 .mtabs{display:none}
@@ -230,6 +236,11 @@ details.fold>summary:hover{color:var(--ink)}
     <div class="row"><label for="z6">下調整座伸出量</label><input id="z6" type="number" min="50" max="500" step="10"></div>
     <div class="row"><label for="z10">上調整座最低伸出量</label><input id="z10" type="number" min="0" step="10"></div>
     <div class="row"><label for="z11">上調整座最高伸出量</label><input id="z11" type="number" min="0" step="10"></div>
+    <div class="row"><label for="z26">上調整座 U 型鈑開口寬 <span class="unit">mm</span></label><input id="z26" type="number" min="50" step="5"></div>
+    <div class="row"><label for="z27">上調整座 U 型鈑長度 <span class="unit">mm</span></label><input id="z27" type="number" min="50" step="5"></div>
+    <div class="row"><label for="z29">並排型鋼間隙 <span class="unit">mm</span></label><input id="z29" type="number" min="0" step="1"></div>
+    <div class="row"><label for="z30">型鋼梁端最大伸出（型鋼清單整支配置） <span class="unit">mm</span></label><input id="z30" type="number" min="0" step="50"></div>
+    <div class="formula" style="color:var(--muted);font-size:12px">最下層縱向型鋼以整支長度配置（不裁切；型鋼清單有該尺寸用清單長度，否則用業界常規長度 1～12 m）：2×翼寬＋間隙 ≤ 開口寬時兩支並排交錯搭接（重疊段涵蓋 U 座），否則同線對接；相鄰排接頭盡量錯開</div>
     <div class="row"><label for="z7">型鋼容許彎應力 <span class="unit">t/cm²</span></label><input id="z7" type="number" min="0.1" step="0.1"></div>
     <div class="row"><label for="z15">型鋼容許剪應力 <span class="unit">t/cm²</span></label><input id="z15" type="number" min="0.1" step="0.01"></div>
     <div class="row"><label for="z12">角材容許彎應力 <span class="unit">kgf/cm²</span></label><input id="z12" type="number" min="1" step="5"></div>
@@ -244,6 +255,12 @@ details.fold>summary:hover{color:var(--ink)}
     <div class="gnote" style="margin:6px 0">勾選現場可使用之桿件，系統僅以勾選材料自動配置；取消勾選即不使用該桿件。</div>
     <div id="matList"></div>
     <div class="btns" style="margin-top:6px"><button id="matAll">全選</button></div>
+  </details>
+  <details id="stkBox">
+    <summary>型鋼清單（最下層縱向型鋼長度）<span id="stkCnt"></span></summary>
+    <div class="gnote" style="margin:6px 0">最下層縱向型鋼若在清單中有相同尺寸，只用勾選的長度整支配置（不裁切），6 m 以下優先，6 m 以下配不出來才用較長的型鋼；接頭不限於 U 座，落於跨中時兩側型鋼端以懸臂檢核，梁端可伸出模板外（上限見「支撐架設計參數」）。清單沒有該尺寸時，改用業界常規長度（1.0、1.5、2.0、3.0、4.0、4.5、5.0、6.0、8.0、9.0、10、11、12 m）同樣整支配置。</div>
+    <div id="stkList"></div>
+    <div class="btns" style="margin-top:6px"><button id="stkAll" type="button">全選</button><button id="stk6" type="button">只用 6 m 以下</button></div>
   </details>
 
   <div class="warn" id="warn"></div>
@@ -276,8 +293,8 @@ details.fold>summary:hover{color:var(--ink)}
 
   <details class="fold" data-k="cad" open><summary>另存 CAD 檔（AutoCAD DWG）</summary>
   <div class="btns"><button id="cadSave" style="border-color:var(--accent2);color:var(--accent2);font-weight:700">另存 CAD 檔</button><button id="dxfSave" style="border-color:var(--accent2);color:var(--accent2);font-weight:700">產生 DXF</button></div>
-  <div class="sub" style="margin-top:6px"><b>另存 CAD 檔</b>：下載 AutoCAD 指令稿（.scr）。於 AutoCAD 2021 輸入 <b>SCRIPT</b> 選取該檔（或將檔案拖曳到 AutoCAD 視窗），即自動開新圖、插入圖塊（立面為動態圖塊，依配置設定規格與伸出量），繪製支撐架平面圖與剖面 a–c、b–d；完成後跳出「另存 DWG」對話框，由使用者選擇儲存位置與檔名。</div>
-  <div class="sub" style="margin-top:6px"><b>產生 DXF</b>：不需 AutoCAD，網頁直接下載 .dxf（平面圖、剖面 a–c、b–d、尺寸標註）。各桿件依規格以單獨圖塊存放（如 V61150、H66090、D61815；下調整座、U 型座依伸出量各一圖塊）。以 AutoCAD 開啟後另存即為 DWG。</div></details>
+  <div class="sub" style="margin-top:6px"><b>另存 CAD 檔</b>：下載 AutoCAD 指令稿（.scr）。於 AutoCAD 2021 輸入 <b>SCRIPT</b> 選取該檔（或將檔案拖曳到 AutoCAD 視窗），即自動開新圖、插入圖塊（立面為動態圖塊，依配置設定規格與伸出量），繪製支撐架平面圖、型鋼平面圖（最下層型鋼分段、接頭與 U 型座位置）與剖面 a–c、b–d；完成後跳出「另存 DWG」對話框，由使用者選擇儲存位置與檔名。</div>
+  <div class="sub" style="margin-top:6px"><b>產生 DXF</b>：不需 AutoCAD，網頁直接下載 .dxf（支撐架平面圖、型鋼平面圖、剖面 a–c、b–d、尺寸標註）。各桿件依規格以單獨圖塊存放（如 V61150、H66090、D61815；下調整座、U 型座依伸出量各一圖塊）。以 AutoCAD 開啟後另存即為 DWG。</div></details>
   <div class="sub" style="margin-top:6px">僅計大梁底模（不含側模）；設置作業平台時，模板、角材與型鋼延伸至平台外緣。合板以 3'×6'（910×1820）計片數，未含損耗。</div>
 </aside>
 <main>
@@ -322,7 +339,7 @@ details.fold>summary:hover{color:var(--ink)}
 const DEF={p1:6000,p2:5725,p3:2300,p4:1900,p5:1700,p6:5000,q1:1600,q2:1000,q3:1000,q4:2000,q5:580,q6:3000,
   f1:21,
   z1:80.84,z2:2.5,z3:2.4,z4:0.2,z8:0.2,z5:1500,z6:200,z7:1.512,z9:3,z10:150,z11:400,
-  z12:75,z13:6,z14:70000,z15:1.008,z16:240,z17:75,z18:6,z19:70000,z20:0.2,z21:1,z22:900,z23:1,z24:0.3,z25:300};
+  z12:75,z13:6,z14:70000,z15:1.008,z16:240,z17:75,z18:6,z19:70000,z20:0.2,z21:1,z22:900,z23:1,z24:0.3,z25:300,z26:170,z27:150,z29:0,z30:500};
 const LEGS=4; // 載重試驗值 = 1 座 4 支腳之整體強度
 const KEYS=Object.keys(DEF);
 // 常用 H 型鋼（CNS/JIS 標準斷面）：H×B×tw×tf (mm), 單位重 kg/m
@@ -344,6 +361,34 @@ const SQ=[[50,50,2.3],[50,50,3.2],[60,60,2.3],[60,60,3.2],[75,75,3.2],[75,75,4.5
   [125,125,4.5],[125,125,6],[150,150,4.5],[150,150,6],[100,50,2.3],[100,50,3.2],[125,75,3.2],[150,100,4.5],[200,100,4.5],[200,100,6]]
   .map(a=>({n:`□${a[0]}×${a[1]}×${a[2]}`,H:a[0],B:a[1],t:a[2],kg:+(7.85*(a[0]*a[1]-(a[0]-2*a[2])*(a[1]-2*a[2]))/1000).toFixed(2)}));
 const BART={tim:{n:'角木',lib:null,item:'tim'},h:{n:'H 型鋼',lib:HS,item:'hb',def:'H200×100'},c:{n:'槽鋼',lib:CS,item:'ch',def:'[150×75×6.5'},sq:{n:'方鋼管',lib:SQ,item:'sq',def:'□100×100×3.2'}};
+// 自訂斷面尺寸（mm）：H 型鋼／槽鋼 H、B、tw、tf；方鋼管 H、B、t；單位重以鋼 7.85 t/m³ 計
+const CUSTOM='__c';
+const CF={h:[['H','高 H'],['B','翼寬 B'],['tw','腹板 tw'],['tf','翼板 tf']],c:[['H','高 H'],['B','翼寬 B'],['tw','腹板 tw'],['tf','翼板 tf']],sq:[['H','高 H'],['B','寬 B'],['t','厚 t']]};
+function custOk(t,c){
+  if(!c||!CF[t]||!CF[t].every(([k])=>+c[k]>0&&+c[k]<=2000))return false;
+  return t==='sq'?2*c.t<Math.min(c.H,c.B):2*c.tf<c.H&&c.tw<c.B;
+}
+function custX(t,c){
+  const v=Object.fromEntries(CF[t].map(([k])=>[k,+c[k]]));
+  const A=t==='sq'?v.H*v.B-(v.H-2*v.t)*(v.B-2*v.t):2*v.B*v.tf+(v.H-2*v.tf)*v.tw;     // mm²
+  const n=t==='h'?`H${v.H}×${v.B}`:t==='c'?`[${v.H}×${v.B}×${v.tw}×${v.tf}`:`□${v.H}×${v.B}×${v.t}`;
+  return {...v,n,kg:+(A*7.85/1000).toFixed(2),custom:true};
+}
+// 型鋼清單（最下層縱向型鋼可用長度，mm）：依斷面尺寸比對；STK[key]===false 表示未啟用
+const STOCK=[{t:'h',d:{H:150,B:75,tw:5,tf:7},L:[1000,2000,3000,4000,6000]},
+  {t:'h',d:{H:200,B:100,tw:5.5,tf:8},L:[1000,1500,2000,3000,4000,4500,5000,6000,8000,9000,10000,11000,12000]}];
+const STK_PREF=6000;                     // 6 m 以下優先配置
+// 業界常規型鋼長度（mm）：型鋼清單無該尺寸時以此整支配置（不裁切）
+const STD_LENS=[1000,1500,2000,3000,4000,4500,5000,6000,8000,9000,10000,11000,12000];
+let STK={};
+const stkKey=(s,l)=>`${s.t}:${Object.values(s.d).join('×')}:${l}`;
+const stkName=s=>`${BART[s.t].n} ${s.t==='c'?'[':s.t==='sq'?'□':'H'}${Object.values(s.d).join('×')}`;
+const stkLen=l=>`${l/1000}${l%1000||l>=10000?'':'.0'} m`;
+function stkFor(sc){                     // 斷面於清單中之項目與已啟用長度（由短至長）
+  if(!sc||sc.tim||!sc.x)return null;
+  const s=STOCK.find(s=>s.t===sc.t&&Object.entries(s.d).every(([k,v])=>Math.abs(+sc.x[k]-v)<1e-6));
+  return s?{s,on:s.L.filter(l=>STK[stkKey(s,l)]!==false)}:null;
+}
 const DIRS={T:'橫向',L:'縱向'};          // 橫向＝垂直梁軸（沿梁寬）；縱向＝沿梁軸（沿梁長）
 const DEF_BARS=()=>[{t:'tim',b:90,h:150,dir:'T'},{t:'h',s:DEF_H,dir:'L'}];
 const MAXBARS=6;
@@ -354,6 +399,7 @@ function cleanBars(a){                  // 驗證儲存檔／專案檔內之墊�
   for(const r of a.slice(0,MAXBARS)){
     if(!r||!BART[r.t])continue;const dir=r.dir==='L'?'L':'T';
     if(r.t==='tim'){const b=+r.b,h=+r.h;if(b>0&&h>0)out.push({t:'tim',b,h,dir});}
+    else if(r.s===CUSTOM&&custOk(r.t,r.c))out.push({t:r.t,s:CUSTOM,c:Object.fromEntries(CF[r.t].map(([k])=>[k,+r.c[k]])),dir});
     else{const lib=BART[r.t].lib;out.push({t:r.t,s:lib.some(x=>x.n===r.s)?r.s:BART[r.t].def,dir});}
   }
   return out.length?out:null;
@@ -362,13 +408,13 @@ function cleanBars(a){                  // 驗證儲存檔／專案檔內之墊�
 function barSec(r){
   if(r.t==='tim'){const b=r.b/10,h=r.h/10;
     return {t:'tim',tim:true,item:'tim',name:`角木 ${fmt(r.b)}×${fmt(r.h)}`,short:`角木 ${fmt(r.b)}×${fmt(r.h)}`,H:r.h,B:r.b,kg:0,I:b*h**3/12,Z:b*h*h/6,As:b*h,e:P.z14,fb:P.z12,fv:P.z13};}
-  const T=BART[r.t],x=T.lib.find(v=>v.n===r.s)||T.lib.find(v=>v.n===T.def);
+  const T=BART[r.t],x=r.s===CUSTOM&&custOk(r.t,r.c)?custX(r.t,r.c):T.lib.find(v=>v.n===r.s)||T.lib.find(v=>v.n===T.def);
   let p;
   if(r.t==='h')p=hProps(x);
   else if(r.t==='c'){const h=x.H/10,b=x.B/10,tw=x.tw/10,tf=x.tf/10,I=(b*h**3-(b-tw)*(h-2*tf)**3)/12;p={I,Z:I/(h/2),As:tw*h};}
   else{const h=x.H/10,b=x.B/10,t=x.t/10,I=(b*h**3-(b-2*t)*(h-2*t)**3)/12;p={I,Z:I/(h/2),As:2*t*h};}
   const nm=r.t==='h'?`${x.n}×${x.tw}×${x.tf}`:x.n;
-  return {t:r.t,tim:false,item:T.item,name:`${T.n} ${nm}`,short:nm,H:x.H,B:x.B,kg:x.kg,x,...p,e:2.04e6,fb:P.z7*1000,fv:P.z15*1000};
+  return {t:r.t,tim:false,item:T.item,name:`${T.n} ${nm}${x.custom?'（自訂）':''}`,short:nm,H:x.H,B:x.B,kg:x.kg,x,...p,e:2.04e6,fb:P.z7*1000,fv:P.z15*1000};
 }
 // 斷面輪廓（mm；寬度置中，頂面 y=0 往下為負）：o 外框、h 內孔（方鋼管）
 function barProf(sc){
@@ -397,11 +443,11 @@ const has=k=>MAT[k]!==false;
 const CADDEF={dir:'G:\\電塔\\支撐架圖塊',out:'G:\\電塔\\Towerfoundation_支撐架.dwg'};
 let CAD={...CADDEF};               // 另存 CAD 檔：圖塊資料夾與輸出 DWG 路徑
 let PRJ='';                        // 目前專案名稱
-function applyState(s){if(s&&typeof s==='object'){if(typeof s.prj==='string')PRJ=s.prj.trim().slice(0,80);if(s.cad&&typeof s.cad==='object'){if(typeof s.cad.dir==='string'&&s.cad.dir.trim())CAD.dir=s.cad.dir;if(typeof s.cad.out==='string'&&s.cad.out.trim())CAD.out=s.cad.out;}if(s.mat&&typeof s.mat==='object')for(const k in s.mat)if(s.mat[k]===false)MAT[k]=false;for(const k of KEYS)if(isFinite(s[k]))P[k]=+s[k];if(HS.some(h=>h.n===s.hsel))HSEL=s.hsel;
+function applyState(s){if(s&&typeof s==='object'){if(typeof s.prj==='string')PRJ=s.prj.trim().slice(0,80);if(s.cad&&typeof s.cad==='object'){if(typeof s.cad.dir==='string'&&s.cad.dir.trim())CAD.dir=s.cad.dir;if(typeof s.cad.out==='string'&&s.cad.out.trim())CAD.out=s.cad.out;}if(s.mat&&typeof s.mat==='object')for(const k in s.mat)if(s.mat[k]===false)MAT[k]=false;if(s.stk&&typeof s.stk==='object'){STK={};for(const k in s.stk)if(s.stk[k]===false)STK[k]=false;}for(const k of KEYS)if(isFinite(s[k]))P[k]=+s[k];if(HS.some(h=>h.n===s.hsel))HSEL=s.hsel;
   {const bb=cleanBars(s.bars);if(bb)BARS=bb;            // 舊版（角材 f2×f3＋型鋼 hsel）自動轉為兩層墊條
    else if(isFinite(s.f2)||isFinite(s.f3)||s.hsel)BARS=[{t:'tim',b:+s.f3>0?+s.f3:90,h:+s.f2>0?+s.f2:150,dir:'T'},{t:'h',s:HS.some(h=>h.n===s.hsel)?s.hsel:DEF_H,dir:'L'}];}
   if(s.ground)for(const a of 'abcd')if(Array.isArray(s.ground[a])&&s.ground[a].length&&s.ground[a].every(p=>isFinite(p[0])&&isFinite(p[1])))GROUND[a]=s.ground[a].map(p=>[+p[0],+p[1]]);}}
-function curState(){return {...P,bars:BARS,ground:GROUND,mat:MAT,cad:CAD,prj:PRJ};}
+function curState(){return {...P,bars:BARS,ground:GROUND,mat:MAT,stk:STK,cad:CAD,prj:PRJ};}
 try{applyState(JSON.parse(localStorage.getItem(STORE)||'null'));}catch(e){}
 // 地面線點：依距離排序（穩定排序，同一距離保留輸入順序）；同一距離輸入兩個高程時＝垂直段：
 //   第一個高程為垂直段前（井桶側）之地面，第二個高程為垂直段後（梁端側）之地面；同距離多於兩點時取首、末兩點
@@ -443,28 +489,44 @@ function renderBars(){
     const lab=`第 ${i+1} 層`,bad=(i>0&&BARS[i-1].dir===r.dir)||(i<BARS.length-1&&BARS[i+1].dir===r.dir);
     const size=r.t==='tim'
       ?`<input type="number" min="1" step="5" list="timList" data-i="${i}" data-f="b" value="${r.b}" aria-label="${lab}角木寬"><span>寬 ×</span><input type="number" min="1" step="5" list="timList" data-i="${i}" data-f="h" value="${r.h}" aria-label="${lab}角木高"><span>高 mm</span>`
-      :`<select data-i="${i}" data-f="s" aria-label="${lab}尺寸">${BART[r.t].lib.map(x=>opt(x.n,r.t==='h'?`${x.n}×${x.tw}×${x.tf}`:x.n,r.s)).join('')}</select>`;
+      :`<select data-i="${i}" data-f="s" aria-label="${lab}尺寸">${BART[r.t].lib.map(x=>opt(x.n,r.t==='h'?`${x.n}×${x.tw}×${x.tf}`:x.n,r.s)).join('')}${opt(CUSTOM,'自訂尺寸（自行輸入）',r.s)}</select>`;
+    // 自訂尺寸：各尺寸輸入欄（mm），即時檢查幾何合理性並顯示單位重
+    const cust=r.t!=='tim'&&r.s===CUSTOM?`<div class="barC">${CF[r.t].map(([k,t])=>`<label>${t}<input type="number" min="0.1" step="${k==='H'||k==='B'?5:0.1}" data-i="${i}" data-f="c.${k}" value="${r.c&&r.c[k]!=null?r.c[k]:''}" aria-label="${lab}${t}"></label>`).join('')}`+
+      `<div class="barCk" id="barCk${i}">${custOk(r.t,r.c)?`單位重 ${custX(r.t,r.c).kg} kg/m`:'<span style="color:var(--warn)">尺寸不合理（需 2×翼板 < 高、腹板 < 翼寬；方鋼管 2×厚 < 寬、高）</span>'}</div></div>`:'';
     return `<div class="bar${bad?' bad':''}"><div class="barH"><span class="barN" title="${lab}">${i+1}</span>`+
       `<select data-i="${i}" data-f="t" aria-label="${lab}材料">${Object.entries(BART).map(([k,v])=>opt(k,v.n,r.t)).join('')}</select>`+
       `<select data-i="${i}" data-f="dir" aria-label="${lab}方向">${opt('T','橫向',r.dir)}${opt('L','縱向',r.dir)}</select>`+
       `<span class="barBtns"><button type="button" data-i="${i}" data-a="up" title="上移" aria-label="${lab}上移"${i===0?' disabled':''}>↑</button>`+
       `<button type="button" data-i="${i}" data-a="down" title="下移" aria-label="${lab}下移"${i===BARS.length-1?' disabled':''}>↓</button>`+
       `<button type="button" data-i="${i}" data-a="del" title="刪除" aria-label="刪除${lab}"${BARS.length<=1?' disabled':''}>✕</button></span></div>`+
-      `<div class="barS">${size}${i===BARS.length-1?'<span class="barU">置於上調整座</span>':i===0?'<span class="barU">緊貼模板</span>':''}</div></div>`;}).join('');
+      `<div class="barS">${size}${i===BARS.length-1?'<span class="barU">置於上調整座</span>':i===0?'<span class="barU">緊貼模板</span>':''}</div>${cust}</div>`;}).join('');
   $('barAdd').disabled=BARS.length>=MAXBARS;
+  if($('stkList').childElementCount)renderStk();      // 更新「目前最下層使用」標示
 }
 $('bars').addEventListener('change',e=>{
   const el=e.target,i=+el.dataset.i,f=el.dataset.f;if(!(i>=0)||!f||!BARS[i])return;
   const r=BARS[i];
   if(f==='t'){const t=el.value;BARS[i]=t==='tim'?{t,b:90,h:150,dir:r.dir}:{t,s:BART[t].def,dir:r.dir};}
   else if(f==='dir')r.dir=el.value==='L'?'L':'T';
-  else if(f==='s')r.s=el.value;
+  else if(f==='s'){
+    // 改為自訂時，以目前選用之標準斷面尺寸為起始值
+    if(el.value===CUSTOM&&!custOk(r.t,r.c)){const T=BART[r.t],x=T.lib.find(v=>v.n===r.s)||T.lib.find(v=>v.n===T.def);r.c=Object.fromEntries(CF[r.t].map(([k])=>[k,x[k]]));}
+    r.s=el.value;}
+  else if(f.startsWith('c.')){}                       // 自訂尺寸已於 input 事件處理
   else{const v=parseFloat(el.value);if(v>0)r[f]=v;else el.value=r[f];}
   renderBars();update();
 });
-$('bars').addEventListener('input',e=>{             // 角木尺寸輸入時即時重算（不重繪清單，以免游標跳動）
+$('bars').addEventListener('input',e=>{             // 角木、自訂尺寸輸入時即時重算（不重繪清單，以免游標跳動）
   const el=e.target,i=+el.dataset.i,f=el.dataset.f;if(el.tagName!=='INPUT'||!BARS[i])return;
-  const v=parseFloat(el.value);if(v>0){BARS[i][f]=v;update();}
+  const v=parseFloat(el.value),r=BARS[i];if(!f)return;
+  if(f.startsWith('c.')){
+    const c={...r.c,[f.slice(2)]:v},ok=v>0&&custOk(r.t,c);
+    for(const x of el.closest('.barC').querySelectorAll('input'))x.classList.toggle('bad',!ok&&x===el);
+    const ck=$('barCk'+i);if(ck)ck.innerHTML=ok?`單位重 ${custX(r.t,c).kg} kg/m`:'<span style="color:var(--warn)">尺寸不合理（需 2×翼板 < 高、腹板 < 翼寬；方鋼管 2×厚 < 寬、高）</span>';
+    if(ok){r.c=c;update();}
+    return;
+  }
+  if(v>0){r[f]=v;update();}
 });
 $('bars').addEventListener('click',e=>{
   const b=e.target.closest('button[data-a]');if(!b)return;const i=+b.dataset.i,a=b.dataset.a;
@@ -480,7 +542,7 @@ $('barAdd').onclick=()=>{                           // 新增於最下層，方�
 };
 $('barDef').onclick=()=>{BARS=DEF_BARS();renderBars();update();};
 renderBars();
-$('reset').onclick=()=>{P={...DEF};HSEL=DEF_H;BARS=DEF_BARS();GROUND=flatGround();MAT={};renderMat();renderBars();for(const k of KEYS)$(k).value=P[k];update();fitView();};
+$('reset').onclick=()=>{P={...DEF};HSEL=DEF_H;BARS=DEF_BARS();GROUND=flatGround();MAT={};STK={};renderMat();renderStk();renderBars();for(const k of KEYS)$(k).value=P[k];update();fitView();};
 
 const CIRC=['','①','②','③','④','⑤','⑥','⑦'];
 const fmt=v=>Math.round(v).toLocaleString('en-US');
@@ -632,7 +694,11 @@ function drawSect(g,id,left,right){
       let off=0;
       for(let bi=LAY.bars.length-1;bi>=0;bi--){
         const b=LAY.bars[bi],sc=b.sec,c=ITEM[sc.item].c;
-        if(b.dir==='L')el('line',{x1:X(sg*g.R),y1:Y(yAt(g.R)+off+sc.H/2),x2:X(sg*hEnd),y2:Y(yAt(hEnd)+off+sc.H/2),style:`stroke:${c};stroke-width:${Math.max(1.2,sc.H*s)}`},svg);
+        if(b.dir==='L'){el('line',{x1:X(sg*g.R),y1:Y(yAt(g.R)+off+sc.H/2),x2:X(sg*hEnd),y2:Y(yAt(hEnd)+off+sc.H/2),style:`stroke:${c};stroke-width:${Math.max(1.2,sc.H*s)}`},svg);
+          // 接頭（第 1 排）：段端以短線表示；並排搭接時兩段重疊於 U 鈑長度內
+          if(b.splice&&b.splice.joints){const row=b.splice.rows[0],sw=css('--ink')||'#000';
+            for(const [i,sg2] of row.entries())for(const [e,k] of [[sg2.a,i>0],[sg2.b,i<row.length-1]])if(k){const t=g.R+e,y=yAt(t)+off;
+              el('line',{x1:X(sg*t),y1:Y(y)+4,x2:X(sg*t),y2:Y(y+sc.H)-4,style:`stroke:${sw};stroke-width:1.1`},svg);}}}
         else{const ca=Math.cos(g.ang),sa=Math.sin(g.ang),lenS=LAY.len*LAY.sf;   // 依斜率貼合、不超出型鋼範圍
           const tl=sc.H*Math.tan(g.ang),xMin=sc.B/2+Math.max(0,tl),xMax=lenS-sc.B/2-Math.max(0,-tl);   // 傾斜後不穿入井桶
           for(const d of b.pos){const xc=Math.min(xMax,Math.max(xMin,d*LAY.sf)),tt=g.R+xc*ca,y0=yAt(tt)+off;
@@ -710,9 +776,9 @@ const LED=[600,900,1200,1500,1800,2400];                       // 具 1.5m 斜�
 // 品項與顏色（3D 圖示及圖例共用）
 const ITEM={
   lowb:{n:'下底座 J60350',c:'#8a9a1e'},
-  jack:{n:'下調整座 J63601',c:'#3f4650'}, sock:{n:'標準基座 V62020',c:'#8e5bd6'},
+  jack:{n:'下調整座 J48601',c:'#3f4650'}, sock:{n:'標準基座 V62020',c:'#8e5bd6'},
   flat:{n:'平主架 V60xxx',c:'#12a39a'},   std:{n:'主架 V61xxx',c:'#2f6fd6'},
-  sub:{n:'輔助桿 V62025/V62050',c:'#e0459a'}, uh:{n:'上調整座 U63601',c:'#d93a3a'},
+  sub:{n:'輔助桿 V62025/V62050',c:'#e0459a'}, uh:{n:'上調整座 U48601',c:'#d93a3a'},
   led:{n:'橫桿 H66xxx',c:'#62c23a'},       dia:{n:'斜桿 D6xxxx',c:'#f39a1e'},
   hb:{n:'H 型鋼',c:'#4b6a88'}, ch:{n:'槽鋼',c:'#2f8f86'}, sq:{n:'方鋼管',c:'#7d6bb0'}, tim:{n:'角木',c:'#a8733c'}, ply:{n:'模板（合板）',c:'#e0b36a'}
 };
@@ -729,9 +795,9 @@ const LEDN=L=>`H66${String(L/10).padStart(3,'0')} 橫桿 ${(L/1000).toFixed(1)}m
 const DIAN=L=>`D6${String(L/100).padStart(2,'0')}15 斜桿 ${(L/1000).toFixed(1)}×1.5m`;
 const MATS=[
   {g:'基座／調整座',items:[
-    {k:'jack',t:'jack',n:'J63601 下調整座',req:1},{k:'sock',t:'sock',n:'V62020 標準基座',req:1},
+    {k:'jack',t:'jack',n:'J48601 下調整座',req:1},{k:'sock',t:'sock',n:'V62020 標準基座',req:1},
     {k:'lowb',t:'lowb',n:'J60350 下底座 0.35m',note:'淨高 < 1.25m'},
-    {k:'uh',t:'uh',n:'U63601 上調整座／U63601S U型活動調整座',req:1}]},
+    {k:'uh',t:'uh',n:'U48601 上調整座／U48600S U型活動調整座',req:1}]},
   {g:'平主架（最下節）',items:[1000,1500,3000].map(L=>({k:'flat'+L,t:'flat',n:PIECE(L,'flat').name}))},
   {g:'主架',items:[1000,1500].map(L=>({k:'std'+L,t:'std',n:PIECE(L,'std').name}))},
   {g:'輔助桿',items:[250,500].map(L=>({k:'sub'+L,t:'sub',n:PIECE(L,'sub').name}))},
@@ -748,6 +814,21 @@ $('matList').addEventListener('change',e=>{const k=e.target.dataset&&e.target.da
   if(e.target.checked)delete MAT[k];else MAT[k]=false;renderMat();update();});
 $('matAll').onclick=()=>{MAT={};renderMat();update();};
 renderMat();
+function renderStk(){
+  const last=BARS.at(-1),cur=last&&last.dir==='L'&&last.t!=='tim'?stkFor(barSec(last)):null;
+  let h='',on=0,tot=0;
+  for(const s of STOCK){
+    h+=`<div class="matg">${stkName(s)}${cur&&cur.s===s?'<span style="color:var(--accent2);font-weight:400">　← 目前最下層使用</span>':''}</div><div class="stkL">`;
+    for(const l of s.L){const k=stkKey(s,l),c=STK[k]!==false;tot++;if(c)on++;
+      h+=`<label class="mat"><input type="checkbox" data-k="${k}" ${c?'checked':''}>${stkLen(l)}</label>`;}
+    h+='</div>';}
+  $('stkList').innerHTML=h;$('stkCnt').textContent=`（已啟用 ${on}／${tot}）`;
+}
+$('stkList').addEventListener('change',e=>{const k=e.target.dataset&&e.target.dataset.k;if(!k)return;
+  if(e.target.checked)delete STK[k];else STK[k]=false;renderStk();update();});
+$('stkAll').onclick=()=>{STK={};renderStk();update();};
+$('stk6').onclick=()=>{STK={};for(const s of STOCK)for(const l of s.L)if(l>STK_PREF)STK[stkKey(s,l)]=false;renderStk();update();};
+renderStk();
 function stdCombo(S){ // 依 ACT：平主架優先 1.5m（再試 1.0、3.0m），其上以主架 1.5m／1.0m 接續（取最少支數，1.5m 在下）；僅用選用之桿件
   const stds=[1500,1000].filter(p=>has('std'+p));
   const fill=R=>{const n=Math.round(R/500),best=Array(n+1).fill(Infinity),from=Array(n+1).fill(0);best[0]=0;
@@ -878,14 +959,80 @@ function layout(g){
   const evenPos=(a,b,pm)=>{const ns=Math.max(1,Math.ceil((b-a)/pm-1e-9)),pit=(b-a)/ns;return {ns,pit,pos:[...Array(ns+1).keys()].map(i=>a+i*pit)};};
   const spanList=sup=>sup.slice(1).map((v,i)=>[sup[i],v]);
   const spanTxt=(sp,dir)=>[...new Set(sp.map(([a,b])=>fmt(b-a)))].join('、')+' mm'+(dir==='L'&&Math.abs(sf-1)>1e-4?'（水平；沿斜長 ×'+sf.toFixed(3)+'）':'');
-  let worstFail=null,boardFail=null;                      // 中間層容許間距不足、單層時模板跨距不足之說明
+  let worstFail=null,boardFail=null,spliceFail=false;     // 中間層容許間距不足、單層時模板跨距不足、型鋼無法分段之說明
+  // 最下層縱向型鋼：以整支長度配置（不裁切）；2×翼寬＋間隙 ≤ U 型鈑開口寬 → 兩支並排交錯搭接，否則同線對接
+  //   單跨支承之型鋼以簡支梁檢核（M=wL²/8、V=0.5wL、δ=5wL⁴/384EI）；相鄰排接頭錯開
+  const SPL=botDir==='L'&&!BOT.tim,Ls=6000,Lu=+P.z27||150,Uw=+P.z26||170,gapU=+P.z29||0;
+  const lapMode=2*BOT.B+gapU<=Uw+TOLM;
+  // 型鋼清單：最下層斷面於清單中有對應尺寸時，僅以啟用之長度配置，先試 6 m 以下，不足再含 6 m 以上
+  const STKM=SPL?stkFor(BOT):null;
+  // 清單無此尺寸：以業界常規長度（STD_LENS）整支配置，不裁切
+  const LENS=STKM?STKM.on:STD_LENS;
+  const TIERS=[LENS.filter(l=>l<=STK_PREF),LENS].filter((t,i,a)=>t.length&&(i===0||t.length!==a[0].length));
+  const simpleCk=(line,Lcm)=>{const sc=BOT,Mc=sc.fb*sc.Z,Vc=sc.fv*sc.As,EI=sc.e*sc.I,Dc=+P.z24||0.3;
+    const M=line*Lcm*Lcm/8,V=0.5*line*Lcm,D=5*line*Lcm**4/(384*EI),rs=[M/Mc,V/Vc,D/Dc],u=Math.max(...rs);
+    return {M,Mc,V,Vc,D,Dc,line,L:Lcm,u,crit:['彎矩','剪力','撓度'][rs.indexOf(u)],simple:true};};
+  // 懸臂檢核（跨中接頭兩側之型鋼端）：M=wc²/2、V=wc、δ=wc⁴/(8EI)
+  const cantCk=(line,Lcm)=>{const sc=BOT,Mc=sc.fb*sc.Z,Vc=sc.fv*sc.As,EI=sc.e*sc.I,Dc=+P.z24||0.3;
+    const M=line*Lcm*Lcm/2,V=line*Lcm,D=line*Lcm**4/(8*EI),rs=[M/Mc,V/Vc,D/Dc],u=Math.max(...rs);
+    return {M,Mc,V,Vc,D,Dc,line,L:Lcm,u,crit:['彎矩','剪力','撓度'][rs.indexOf(u)],simple:true,cant:true};};
+  // 型鋼清單整支配置（不裁切）：各支依清單長度整支使用，接頭位置不限於 U 座。
+  //   對接（同一直線）：接頭落於 U 鈑內（每側承壓 ≥ 50）視為支承；落於跨中時兩側型鋼端以懸臂檢核
+  //   並排搭接（2×翼寬＋間隙 ≤ 開口寬）：重疊段需完整涵蓋一個 U 座（重疊 ≥ U 鈑長），兩支交錯偏心；隔支不重疊
+  //   每支至少有 2 個支承；井桶端貼齊井桶面，梁端可伸出模板外 ≤ z30；取支數最少 → 伸出最小 → 用料最省 → 利用率最低
+  const OHmax=Math.max(0,+P.z30||0),BMIN=50;
+  const spliceStock=(x,line,nRows,lens)=>{
+    const U=x.positions.map(v=>v*sf),F=len*sf,hl=Lu/2,o=(BOT.B+gapU)/2,desc=lens.slice().sort((a,b)=>b-a),Lmax=desc[0];
+    const sup=(s,e)=>U.filter(u=>s<=u+hl-BMIN+TOLM&&e>=u-hl+BMIN-TOLM);
+    const piece=(s,e,jS,jE)=>{                            // jS／jE：該端為接頭（需懸臂檢核）
+      const su=sup(s,Math.min(e,F));if(su.length<2)return null;
+      // 依本支型鋼下方支點數：2 個支點＝簡支梁（wL²/8）；3 個以上＝連續梁（wL²/10，取最大跨）；接頭端另以懸臂檢核
+      const base=su.length===2?simpleCk(line,(su[1]-su[0])/10):{...barCheck(BOT,line,Math.max(...su.slice(1).map((u,i)=>u-su[i]))/10,ratio),cont:true};
+      let cw=null;const tc=c=>{if(!cw||c.u>cw.u)cw=c;};
+      if(jS&&su[0]-s>1)tc(cantCk(line,(su[0]-s)/10));
+      if(jE&&Math.min(e,F)-su.at(-1)>1)tc(cantCk(line,(Math.min(e,F)-su.at(-1))/10));
+      const w={...(cw&&cw.u>base.u?cw:base),ns:su.length,base,cw};
+      return w.u>1+TOLM?null:w;};
+    const res=[];let nodes=0;
+    const dfs=(lo,hi,acc,k)=>{if(res.length>=2000||++nodes>300000)return;
+      for(const S of desc){
+        if(hi+S>=F-TOLM){                                 // 最後一支：起點取窗口內使伸出最小者
+          const s=Math.max(lo,F-S);if(s>hi+TOLM)continue;const e=s+S;if(e-F>OHmax+TOLM)continue;
+          const c=piece(s,e,acc.length>0,false);if(c)res.push([...acc,{s,e,S,c}]);continue;}
+        if(acc.length+1>=k)continue;
+        const s=hi,e=s+S,c=piece(s,e,acc.length>0,true);if(!c)continue;
+        const cur=[...acc,{s,e,S,c}];
+        if(!lapMode){dfs(e,e,cur,k);continue;}
+        const prevE=acc.length?acc.at(-1).e:0;          // 隔支不重疊（同側）
+        for(const u of U)if(u+hl<=e+TOLM&&u-hl>s+TOLM&&u-hl>=prevE-TOLM)dfs(Math.max(s+1,prevE),u-hl,cur,k);
+      }};
+    for(let k=Math.max(1,Math.ceil((F-OHmax)/Lmax-1e-9));k<=40&&!res.length;k++)dfs(0,0,[],k);
+    if(!res.length)return null;
+    const tot=r=>r.reduce((a,p)=>a+p.S,0),oh=r=>r.at(-1).e-F,mu=r=>Math.max(...r.map(p=>p.c.u));
+    res.sort((A,B)=>A.length-B.length||oh(A)-oh(B)||tot(A)-tot(B)||mu(A)-mu(B));
+    // 接頭位置代號：搭接→所含 U 座；對接→落於 U 鈑內之 U 座或所在跨
+    const keys=r=>r.slice(0,-1).map((p,i)=>{
+      if(lapMode)return 'u'+U.findIndex(u=>r[i+1].s<=u-hl+TOLM&&p.e>=u+hl-TOLM);
+      const z=p.e,k=U.findIndex(u=>Math.abs(z-u)<=hl);return k>=0?'u'+k:'s'+U.filter(u=>u<z).length;});
+    const A=res[0],kA=keys(A),Bs=res.find(r=>r.length===A.length&&keys(r).every(k=>!kA.includes(k))),B=Bs||A;
+    const mk=(r,j)=>r.map((p,i)=>({a:p.s/sf,b:p.e/sf,off:lapMode&&r.length>1?((i+j)%2?o:-o):0,st:p.S,ck:p.c}));
+    let sck=null;for(const r of [A,B])for(const p of r)if(p.c.crit&&(!sck||p.c.u>sck.u))sck=p.c;
+    return {rows:[...Array(nRows).keys()].map(j=>mk(j%2?B:A,j)),stag:!!Bs||nRows<2,sck,lens,oh:Math.max(oh(A),oh(B)),free:true,
+      cant:[A,B].some(r=>r.some(p=>p.c.cant))};
+  };
   // 由下而上逐層：最下層置於主架格點；其上各層依下一層之間距為跨距，求容許間距後等分排列
   const stackFor=(x,fa)=>{
     const res=new Array(NB);let sup;
     if(botDir==='L'){                                     // 最下層縱向：位於各排（橫向座標），跨越主架縱向間距（沿斜長）
       if(fa.gaps.some(gp=>gp<BOT.B-TOLM))return null;
-      const ck=barCheck(BOT,Math.max(...fa.sLineLoads)*10,x.nominal*sf/10,ratio);if(ck.u>1+TOLM)return null;
-      res[NB-1]={pos:fa.positions.slice(),n:fa.positions.length,ck,len:len*sf,spanTxt:`主架縱向主跨 ${fmt(x.nominal)} mm（沿斜長 ${fmt(x.nominal*sf)}）`};
+      const line=Math.max(...fa.sLineLoads)*10;
+      let ck=barCheck(BOT,line,x.nominal*sf/10,ratio);if(ck.u>1+TOLM)return null;
+      let splice=null;
+      if(SPL){let ti=0;for(;ti<TIERS.length&&!(splice=spliceStock(x,line,fa.positions.length,TIERS[ti]));ti++);
+        if(!splice){spliceFail=true;return null;}
+        splice={...splice,list:STKM?STKM.s:{std:true},over:ti>0,lap:lapMode,Ls,Lu,Uw,gap:gapU,joints:splice.rows.reduce((s,r)=>s+r.length-1,0)};
+        if(splice.sck)ck=splice.sck;}                     // 依各支型鋼支點自行判別簡支／連續（及接頭懸臂）之最不利者
+      res[NB-1]={pos:fa.positions.slice(),n:fa.positions.length,ck,len:len*sf,splice,spanTxt:`主架縱向主跨 ${fmt(x.nominal)} mm（沿斜長 ${fmt(x.nominal*sf)}）`};
       sup=fa.positions;
     }else{                                                // 最下層橫向：位於各列（縱向座標），跨越主架橫向間距
       if(x.gaps.some(gp=>gp<BOT.B-TOLM))return null;
@@ -932,6 +1079,8 @@ function layout(g){
   }
   if(!grids.length){
     if(boardFail)return fail(`僅一層墊條時模板直接跨越墊條，最小跨距 ${fmt(boardFail)} mm 仍大於模板容許板跨 ${fmt(boardSpan*1000)} mm；請新增墊條層或加厚模板。`);
+    if(spliceFail&&STKM&&!STKM.on.length)return fail(`型鋼清單中 ${stkName(STKM.s)} 之長度均未啟用，請於「型鋼清單」勾選可用長度。`);
+    if(spliceFail)return fail(`最下層${BOT.name}無法以${STKM?'型鋼清單已啟用':'業界常規'}之整支長度（${LENS.map(stkLen).join('、')}，不裁切）配置：每支需至少有 2 個 U 座支承、梁端伸出 ≤ ${fmt(OHmax)} mm，跨中接頭兩側懸臂需符合強度${lapMode?`，搭接重疊段需涵蓋 U 座`:''}；請${STKM?'啟用更多長度、':''}加大梁端伸出量或加大型鋼。`);
     if(worstFail)return fail(`墊條第 ${worstFail.k+1} 層（${SECS[worstFail.k].name}）容許間距僅 ${fmt(worstFail.pm)} mm，小於其寬度（控制：${worstFail.gov?worstFail.gov.crit:'—'}）；請加大該層或其下一層之材料，或增加墊條層。`);
     return fail('目前沒有同時符合模板、墊條強度與單支主架載重的制式配置，請調整墊條材料、方向或載重試驗值。');
   }
@@ -1012,7 +1161,7 @@ function layout(g){
   let cur=null;
   const cnt={},cntT={},add=(key,m,type)=>{cnt[key]=(cnt[key]||0)+m;cntT[type]=(cntT[type]||0)+m;
     if(cur){cur.cnt[key]=(cur.cnt[key]||0)+m;cur.cntT[type]=(cur.cntT[type]||0)+m;}};
-  const uName=Math.abs(g.ang)>1e-4?'U63601S U型活動調整座':'U63601 上調整座';
+  const uName=Math.abs(g.ang)>1e-4?'U48600S U型活動調整座':'U48601 上調整座';
   const ledName=L=>`H66${String(L/10).padStart(3,'0')} 橫桿 ${(L/1000).toFixed(1)}m`;
   const diagName=bay=>`D6${String(bay/100).padStart(2,'0')}15 斜桿 ${(bay/1000).toFixed(1)}×1.5m`;
   const nu=n-1,nc=k-1,mode=+P.z9;
@@ -1021,7 +1170,7 @@ function layout(g){
   for(const a of ['a','b','c','d']){
     const cols=armCols[a];cur={cnt:{},cntT:{}};
     if(!cols.aligned)warn.push(`${a} 腳地面高差使下調整座（80～450 mm）無法讓各主架圓盤同高，橫桿可能無法水平拉設，請調整地面線。`);
-    for(const col of cols){if(!col.low){add('J63601 下調整座',k,'jack');add('V62020 標準基座',k,'sock');}add(uName,k,'uh');for(const pc of col.pieces)add(pc.name,k,pc.type);}
+    for(const col of cols){if(!col.low){add('J48601 下調整座',k,'jack');add('V62020 標準基座',k,'sock');}add(uName,k,'uh');for(const pc of col.pieces)add(pc.name,k,pc.type);}
     if(cols.some(c=>c.low))warn.push(`${a} 腳第 ${cols.map((c,i)=>c.low?i+1:0).filter(Boolean).join('、')} 列支撐淨高不足，改用下底座 J60350 上接輔助桿（無下調整座，僅以上調整座調整高度）。`);
     const bays=[],bayMap={},units=[];
     for(let i=0;i<n-1;i++)for(let j=0;j<k;j++){const bb={a:[i,j],b:[i+1,j],len:sel.x.gaps[i]};bays.push(bb);bayMap['a'+i+'_'+j]=bb;}
@@ -1097,6 +1246,8 @@ function layout(g){
   const conc=P.z3*g.w*g.ext*(g.d3+g.d4)/2/1e9, areaArm=g.w*g.ext/1e6;
   // 墊條結果（由上而下）：pos 為構件位置（橫向構件＝縱向座標 d；縱向構件＝橫向座標 0～w，梁中心 = w/2）
   const bars=sel.stack.map((r,i)=>({...r,i,sec:SECS[i],lay:BARS[i],dir:BARS[i].dir,bottom:i===NB-1}));
+  if(BOT.B>Uw+TOLM)warn.push(`最下層墊條寬 ${fmt(BOT.B)} mm 大於上調整座 U 型鈑開口寬 ${fmt(Uw)} mm，無法置入 U 型鈑，請改用較窄之材料。`);
+  {const sp=bars[NB-1].splice;if(sp&&sp.joints&&!sp.stag)warn.push('最下層型鋼相鄰排之接頭無法錯開（可用長度限制），接頭落於同一跨或同一 U 座。');}
   const b0=bars[0],boardUse=NB>1?b0.pitch:Math.max(...b0.pos.slice(1).map((v,i)=>v-b0.pos[i]));
   return {ok:true,warn,H:{...BOT,n:BOT.short},hp,k,n,pos,along:sel.x,across:fa,arms,cols:arms.a.cols,cnt,cntT,lift,Pallow,legP:sel.legP,Pmax:sel.Pmax,
     uName,len,PWS,PWE,p,pp,sf,bars,barsH,BOT,boardSpan:boardSpan*1000,boardUse,
@@ -1121,7 +1272,7 @@ function shoreQty(g,L){
     ['— 模板 —',`t=${fmt(P.f1)}，容許板跨 ${fmt(L.boardSpan)} mm；實際 ${fmt(L.boardUse)} mm　${okc(L.boardUse<=L.boardSpan+0.5)}（${pct(L.boardUse,L.boardSpan)}）`],
     ...L.bars.flatMap(b=>{const c=b.ck;return [
       [`— 墊條第 ${b.i+1} 層：${b.sec.name}（${DIRS[b.dir]}）—`,b.bottom
-        ?`置於上調整座，${b.n} 支／梁臂；${b.spanTxt}`
+        ?`置於上調整座，${b.n} 排／梁臂；${b.spanTxt}${b.splice?`；${spliceSum(L,b).txt}`:''}${b.splice?'；各支型鋼依下方支點數檢核（2 支點簡支、3 支點以上連續）':''}${b.ck.cant?'；控制：接頭處型鋼懸臂端':b.ck.simple?'；控制：簡支型鋼':b.splice?'；控制：連續型鋼':''}`
         :`@${fmt(b.pitch)} mm × ${b.n} 支／梁臂；容許間距 ${fmt(b.maxPitch)} mm（控制：${b.gov.crit}）；跨距 ${b.spanTxt}`],
       ['　彎矩',`${(c.M/1e5).toFixed(3)} / ${(c.Mc/1e5).toFixed(3)} tf·m　${okc(c.M<=c.Mc*TL)}（${pct(c.M,c.Mc)}）`],
       ['　剪力',`${(c.V/1000).toFixed(3)} / ${(c.Vc/1000).toFixed(3)} tf　${okc(c.V<=c.Vc*TL)}（${pct(c.V,c.Vc)}）`],
@@ -1138,8 +1289,34 @@ function shoreQty(g,L){
   ];
   $('pinfo').textContent=`單支強度 = ${P.z1} ÷ ${P.z2} ÷ ${LEGS} = ${L.Pallow.toFixed(3)} tf，依此自動配置主架間距`;
   $('qtyS').innerHTML=r.map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td></tr>`).join('');
-  const keys=Object.keys(L.cnt).sort();
-  $('qtyC').innerHTML=keys.map(k=>`<tr><td>${k}</td><td>${fmt(L.cnt[k])} 支</td></tr>`).join('');
+  const keys=Object.keys(L.cnt).sort(),SR=steelRows(L);
+  const kg1=v=>v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  let tP=0,tS=0;const miss=[];
+  const rP=keys.map(k=>{const w=wtOf(k),n=L.cnt[k];if(w==null)miss.push(k.split(' ')[0]);else tP+=w*n;
+    return `<tr><td>${k}</td><td>${fmt(n)} 支</td><td>${w==null?'—':kg1(w)}</td><td>${w==null?'—':kg1(w*n)}</td></tr>`;}).join('');
+  const rS=SR.map(s=>{const w=s.m*s.kg,n=4*s.n;tS+=w*n;return `<tr><td>${s.name}</td><td>${fmt(n)} 支</td><td>${kg1(w)}</td><td>${kg1(w*n)}</td></tr>`;}).join('');
+  $('qtyC').innerHTML=`<tr><th>品項</th><th>數量</th><th>單重 kg</th><th>小計 kg</th></tr>`+rP+
+    `<tr class="total"><td>支撐架桿件總重${miss.length?`（${miss.join('、')} 重量表未列，未計）`:''}</td><td></td><td></td><td>${kg1(tP)}</td></tr>`+
+    (SR.length?rS+`<tr class="total"><td>型鋼總重</td><td></td><td></td><td>${kg1(tS)}</td></tr>`:'')+
+    `<tr class="total"><td>合計（${(tP+tS)/1000>=1?((tP+tS)/1000).toFixed(2)+' t':'kg'}）</td><td></td><td></td><td>${kg1(tP+tS)}</td></tr>`;
+}
+// 支撐架桿件單重（kg）：依資料夾內「重量表.xlsx」之「重量表」分頁；以桿件編號（品項名稱第一段）對應
+const WT={V60100:5.75,V60150:8.63,V60200:11.42,V60300:17.4,V61100:6.8,V61150:9.45,V61200:12.47,V61300:18.45,
+  V62020:2.2,V62025:2.28,V62050:3.38,H66060:2.4,H66090:3.22,H66120:3.78,H66150:4.85,H66180:5.67,H66240:7.3,
+  D60610:4.45,D60910:4.84,D61510:5.96,D61810:6.62,D60615:5.74,D60915:6,D61215:6.32,D61515:6.89,D61815:7.46,D62415:8.71,
+  L61515:6.54,L61815:7.14,L62415:8.05,L61818:7.7,J48601:4.91,U48601:5.96,J48600S:6.72,U48600S:7.42,
+  J60350:3.04};                          // 下底座 J60350：重量表未列，依使用者提供
+const wtOf=k=>WT[String(k).split(' ')[0]];
+// 型鋼（鋼材墊條）數量：每梁臂各長度支數；最下層分段者依各段（型鋼清單為整支長度），其餘為全長一支
+//   回傳 [{name, n（每梁臂）, m（單支長 m）, kg（kg/m）}]
+function steelRows(L){
+  const out=[];
+  for(const b of L.bars){const sc=b.sec;if(sc.tim)continue;
+    const ss=b.splice?spliceSum(L,b):null;
+    const ps=ss?ss.pieces.map(p=>[b.splice.list?p[2]:p[0],p[1]]):[[b.len,b.n]];
+    const m=new Map();for(const [l,n] of ps){const k=Math.round(l);m.set(k,(m.get(k)||0)+n);}
+    for(const [l,n] of [...m].sort((x,y)=>y[0]-x[0]))out.push({name:`${sc.short}　L=${(l/1000).toFixed(2)} m（第 ${b.i+1} 層）`,n,m:l/1000,kg:sc.kg});}
+  return out;
 }
 // ---------- 各大梁（腳）桿件、材料數量 ----------
 let ARM_ROWS=[];
@@ -1158,6 +1335,14 @@ function armQty(g){
   sec('支撐架桿件');
   for(const k of keys)row(k,'支',A.map(a=>L.arms[a].cnt[k]||0));
   row('<b>桿件合計</b>','支',A.map(a=>Object.values(L.arms[a].cnt).reduce((s,v)=>s+v,0)));
+  row('桿件總重（依重量表）','kg',A.map(a=>Object.entries(L.arms[a].cnt).reduce((s,[k,v])=>s+(wtOf(k)||0)*v,0)),1);
+  const SR=steelRows(L);
+  if(SR.length){sec('型鋼');
+    for(const s of SR)row(s.name,'支',A.map(()=>s.n));
+    row('<b>型鋼合計</b>','支',A.map(()=>SR.reduce((t,s)=>t+s.n,0)));
+    row('型鋼總長','m',A.map(()=>SR.reduce((t,s)=>t+s.n*s.m,0)),1);
+    row('型鋼總重','t',A.map(()=>SR.reduce((t,s)=>t+s.n*s.m*s.kg,0)/1000),2);
+    row('<b>桿件＋型鋼總重</b>','t',A.map(a=>(Object.entries(L.arms[a].cnt).reduce((s,[k,v])=>s+(wtOf(k)||0)*v,0)+SR.reduce((t,s)=>t+s.n*s.m*s.kg,0))/1000),2);}
   sec('主架配置');
   row('主架支數（排 × 列）','支',A.map(()=>L.k*L.n));
   row('最大垂直荷載／支','tf',A.map(()=>L.Pmax),3);
@@ -1168,10 +1353,9 @@ function armQty(g){
   row(`模板面積（t=${fmt(P.f1)}）`,'m²',A.map(()=>area),2);
   row("合板片數（3'×6'）",'片',A.map(()=>Math.ceil(area/(0.91*1.82))));
   for(const b of L.bars){
-    const lm=b.len/1000,sc=b.sec;
+    const lm=b.len/1000,sc=b.sec;if(!sc.tim)continue;      // 鋼材墊條列於「型鋼」
     row(`第 ${b.i+1} 層 ${sc.name}（${DIRS[b.dir]}${b.pitch?` @${fmt(b.pitch)}`:''}，${lm.toFixed(2)} m）`,'支',A.map(()=>b.n));
-    if(sc.tim){row(`　${sc.short} 總長`,'m',A.map(()=>b.n*lm),1);row(`　${sc.short} 材積`,'才',A.map(()=>b.n*lm*sc.B*sc.H/1e6/SAI),0);}
-    else row(`　${sc.short} 總重`,'t',A.map(()=>b.n*lm*sc.kg/1000),2);
+    row(`　${sc.short} 總長`,'m',A.map(()=>b.n*lm),1);row(`　${sc.short} 材積`,'才',A.map(()=>b.n*lm*sc.B*sc.H/1e6/SAI),0);
   }
   sec('混凝土（大梁，梁臂外伸段）');
   row('混凝土量','m³',A.map(()=>g.w*g.ext*(g.d3+g.d4)/2/1e9),2);
@@ -1201,6 +1385,24 @@ const setAllFold=open=>{for(const d of document.querySelectorAll('details.fold')
   for(const tr of $('qtyArm').querySelectorAll('tr.sec')){FOLD['arm:'+tr.dataset.sec]=!open;tr.classList.toggle('shut',!open);}
   for(const r of $('qtyArm').querySelectorAll('tr[data-g]'))r.hidden=!open;saveFold();};
 $('foldAll').onclick=()=>setAllFold(false);$('unfoldAll').onclick=()=>setAllFold(true);
+// 最下層縱向型鋼接頭摘要：各段長度（沿斜長，每梁臂支數）、接頭方式
+function spliceSum(L,b){
+  const sp=b.splice;if(!sp)return null;
+  // pieces：[裁切長, 每梁臂支數, 型鋼長度]；型鋼清單模式之 tl 以型鋼長度（備料）計
+  const m=new Map();for(const row of sp.rows)for(const s of row){const l=Math.round((s.b-s.a)*L.sf),k=l+'|'+s.st;m.set(k,[l,(m.has(k)?m.get(k)[1]:0)+1,s.st]);}
+  const pieces=[...m.values()].sort((x,y)=>y[2]-x[2]||y[0]-x[0]),n=pieces.reduce((s,p)=>s+p[1],0);
+  const tl=pieces.reduce((s,p)=>s+(sp.list?p[2]:p[0])*p[1],0);
+  const src=sp.list&&sp.list.std?`業界常規長度（型鋼清單無此尺寸；${sp.lens.map(stkLen).join('、')}${sp.over?'；6 m 以下無法配置，含 6 m 以上':''}）`
+    :sp.list?`型鋼清單 ${stkName(sp.list)}（啟用長度 ${sp.lens.map(stkLen).join('、')}${sp.over?'；6 m 以下無法配置，含 6 m 以上':''}）`:`定尺 ${fmt(sp.Ls)}（型鋼清單無此尺寸）`;
+  const ohT=sp.free&&sp.oh>1?`；梁端伸出模板外 ${fmt(sp.oh)}`:'';
+  const how=!sp.joints?`不需接頭（整支 ${sp.list?stkLen(pieces[0][2]):`定尺 ${fmt(sp.Ls)}`}${ohT}）`
+    :sp.free?(sp.lap?`整支不裁切，並排交錯搭接（重疊段涵蓋 U 座、重疊 ≥ ${fmt(sp.Lu)}，各偏心 ${fmt((b.sec.B+sp.gap)/2)}）${ohT}`
+      :`整支不裁切，同線對接（接頭不限 U 座；落於跨中者兩側型鋼端以懸臂檢核）${ohT}`)
+    :sp.lap?`並排交錯搭接（2×${fmt(b.sec.B)}＋${fmt(sp.gap)} ≤ U 鈑開口 ${fmt(sp.Uw)}；搭接 ${fmt(sp.Lu)}，各偏心 ${fmt((b.sec.B+sp.gap)/2)}）`
+    :`U 鈑中心對接（2×${fmt(b.sec.B)}＋${fmt(sp.gap)} > U 鈑開口 ${fmt(sp.Uw)}；每端承壓 ${fmt(sp.Lu/2)}）`;
+  const pTxt=p=>sp.list?`${stkLen(p[2])}${p[0]<p[2]-1?`（裁切 ${fmt(p[0])}）`:''}`:`${fmt(p[0])} mm`;
+  return {pieces,n,tl,how,src,pTxt,txt:`${src}，${how}${sp.joints?`；接頭 ${sp.joints} 處／梁臂${sp.stag?'，相鄰排錯開':''}`:''}`};
+}
 function formQty(g){
   const t=P.f1,L=LAY;
   const bh=BARS.reduce((s,r)=>s+barSec(r).H,0);
@@ -1215,10 +1417,13 @@ function formQty(g){
     ["合板片數（3'×6'）",fmt(sheets)+' 片'],
   ];
   for(const b of L.bars){
-    const sc=b.sec,lm=b.len/1000,N=4*b.n,tl=N*lm;
-    r.push([`第 ${b.i+1} 層 ${sc.name}（${DIRS[b.dir]}${b.pitch?` @${fmt(b.pitch)}`:'，置於上調整座'}）`,`${fmt(N)} 支 × ${lm.toFixed(2)} m`]);
+    const sc=b.sec,ss=spliceSum(L,b),lm=b.len/1000,N=4*(ss?ss.n:b.n),tl=ss?4*ss.tl/1000:N*lm;
+    r.push([`第 ${b.i+1} 層 ${sc.name}（${DIRS[b.dir]}${b.pitch?` @${fmt(b.pitch)}`:'，置於上調整座'}）`,
+      ss?ss.pieces.map(p=>b.splice.list?`${fmt(4*p[1])} 支 × ${stkLen(p[2])}${p[0]<p[2]-1?`（裁切 ${(p[0]/1000).toFixed(2)} m）`:''}`:`${fmt(4*p[1])} 支 × ${(p[0]/1000).toFixed(2)} m`).join('<br>'):`${fmt(N)} 支 × ${lm.toFixed(2)} m`]);
+    if(ss)r.push(['　長度來源',ss.src]);
+    if(ss&&ss.pieces.length&&b.splice.joints)r.push(['　接頭',ss.how+`；${fmt(4*b.splice.joints)} 處`]);
     if(sc.tim){const v=tl*sc.B*sc.H/1e6;r.push(['　總長／材積',`${tl.toFixed(1)} m／${v.toFixed(2)} m³（${fmt(v/SAI)} 才）`]);}
-    else r.push(['　總長／總重',`${tl.toFixed(1)} m／${(tl*sc.kg/1000).toFixed(2)} t（${sc.kg} kg/m）`]);
+    else r.push([ss&&b.splice.list?'　備料總長／總重（依型鋼長度）':'　總長／總重',`${tl.toFixed(1)} m／${(tl*sc.kg/1000).toFixed(2)} t（${sc.kg} kg/m）`]);
   }
   r.push(['最下層墊條底距地面（井桶側／梁端平台）',`${fmt(L.cols[0].yH)}／${fmt(L.cols.at(-1).yH)} mm`]);
   $('qtyF').innerHTML=r.map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td></tr>`).join('');
@@ -1247,7 +1452,9 @@ function drawForm(g){
     if(b.dir==='T')R4(-hw2,yT,hw2,yT-sc.H,cls);
     else{
       const pr=barProf(sc),path=(pts,n)=>'M'+pts.map(p=>`${X(n+p[0]).toFixed(2)},${Y(yT+p[1]).toFixed(2)}`).join('L')+'Z';
-      for(const v of b.pos){const n=v-g.w/2;el('path',{d:path(pr.o,n)+(pr.h?path(pr.h,n):''),class:cls,'fill-rule':'evenodd'},svg);}
+      // 最下層並排搭接：表示接頭處（兩支並排，各偏心 ±(B+間隙)/2）
+      const sp=b.splice,offs=sp&&sp.lap&&sp.joints?[-1,1].map(s=>s*(sc.B+sp.gap)/2):[0];
+      for(const v of b.pos)for(const o of offs){const n=v-g.w/2+o;el('path',{d:path(pr.o,n)+(pr.h?path(pr.h,n):''),class:cls,'fill-rule':'evenodd'},svg);}
     }
     yT-=sc.H;
   }
@@ -1260,7 +1467,7 @@ function drawForm(g){
   // 主架橫向間距標註（最下層墊條底）
   for(let j=0;j<k-1;j++)dim(svg,[X(LAY.pos[j]),Y(yT)],[X(LAY.pos[j+1]),Y(yT)],12,'',fmt(LAY.across.gaps[j]));
   note(ox,Y(yT)+36,`模板 t=${fmt(t)}`);
-  bars.forEach((b,i)=>note(ox,Y(yT)+36+13*(i+1),`第 ${i+1} 層 ${b.sec.short}（${DIRS[b.dir]}）${b.pitch?` @${fmt(b.pitch)}`:''} × ${b.n} 支`));
+  bars.forEach((b,i)=>note(ox,Y(yT)+36+13*(i+1),`第 ${i+1} 層 ${b.sec.short}（${DIRS[b.dir]}）${b.pitch?` @${fmt(b.pitch)}`:''} × ${b.n} ${b.splice?'排':'支'}${b.splice&&b.splice.joints?(b.splice.lap?'，接頭處並排搭接':'，U 座中心對接'):''}`));
 }
 
 // ---------- 3D ----------
@@ -1326,11 +1533,15 @@ function legInfo(L,arm,i,j,type,title,extra){
     ['載重比',okTxt(P0,L.Pallow)],
   ]};
 }
+// 檢核公式說明：懸臂（接頭端）／簡支（2 支點）／連續（3 支點以上）
+const ckFormula=c=>c.cant?'懸臂（接頭端）M=wc²/2，V=wc，δ=wc⁴/(8EI)':c.simple?'簡支梁（2 支點）M=wL²/8，V=0.5wL，δ=5wL⁴/(384EI)':'連續梁（3 支點以上）M=wL²/10，V=0.5wL，δ=wL⁴/(128EI)';
+const ckTxt=(c,lb)=>`${ckFormula(c)}；${lb} ${fmt(c.L*10)} mm；M ${(c.M/1e5).toFixed(3)}/${(c.Mc/1e5).toFixed(3)} tf·m、V ${(c.V/1000).toFixed(3)}/${(c.Vc/1000).toFixed(3)} tf、δ ${(c.D*10).toFixed(2)}/${(c.Dc*10).toFixed(2)} mm；利用率 ${c.u.toFixed(2)}（${c.crit}控制）　${c.u<=1+1e-6?'OK':'NG'}`;
 function barInfo(L,b){
   const sc=b.sec,c=b.ck;
   return {type:sc.item,title:`第 ${b.i+1} 層墊條：${sc.name}`,rows:[
     ['方向',b.dir==='T'?'橫向（垂直梁軸，沿梁寬）':'縱向（沿梁軸，沿斜長）'],
-    ['數量',`${b.n} 支／梁臂，每支 ${fmt(b.len)} mm`],
+    ...(()=>{const ss=spliceSum(L,b);return ss?[['數量',`${b.n} 排／梁臂，共 ${ss.n} 支：`+ss.pieces.map(p=>`${ss.pTxt(p)} × ${p[1]}`).join('、')],['接頭',ss.txt]]
+      :[['數量',`${b.n} 支／梁臂，每支 ${fmt(b.len)} mm`]];})(),
     ['斷面',sc.tim?`${fmt(sc.B)}×${fmt(sc.H)}；E=${fmt(sc.e)}，Fb=${sc.fb}，Fv=${sc.fv} kgf/cm²`:`Ix=${sc.I.toFixed(0)} cm⁴，Zx=${sc.Z.toFixed(1)} cm³，${sc.kg} kg/m`],
     [b.bottom?'支承':'間距',b.bottom?'置於上調整座（U 型座）':`@${fmt(b.pitch)} mm（容許 ${fmt(b.maxPitch)} mm，控制：${b.gov.crit}）`],
     ['跨距',b.spanTxt],
@@ -1338,7 +1549,7 @@ function barInfo(L,b){
     ['彎矩',`${(c.M/1e5).toFixed(3)} / ${(c.Mc/1e5).toFixed(3)} tf·m　${okTxt(c.M,c.Mc)}`],
     ['剪力',`${(c.V/1000).toFixed(3)} / ${(c.Vc/1000).toFixed(3)} tf　${okTxt(c.V,c.Vc)}`],
     ['撓度',`${(c.D*10).toFixed(2)} / ${(c.Dc*10).toFixed(2)} mm（容許值）　${okTxt(c.D,c.Dc)}`],
-    ['公式','M=wL²/10，V=0.5wL，δ=wL⁴/(128EI)']]};
+    ['公式',ckFormula(c)+(b.splice?'（控制支；各支依下方支點數：2 支點簡支、3 支點以上連續）':'')]]};
 }
 function barShape(sc){
   const pr=barProf(sc),sh=new THREE.Shape(pr.o.map(p=>new THREE.Vector2(p[0]*S,p[1]*S)));
@@ -1359,9 +1570,14 @@ function buildForm(g,parent){
   // 鋼材斷面：每層共用一個擠出幾何（橫向：沿 z 擠出梁寬；縱向：沿 x 擠出斜長）
   const geos=L.bars.map(b=>{if(b.sec.tim)return null;
     if(b.dir==='T'){const geo=new THREE.ExtrudeGeometry(barShape(b.sec),{depth:Wd*S,bevelEnabled:false});geo.translate(0,0,-Wd/2*S);return geo;}
-    const geo=new THREE.ExtrudeGeometry(barShape(b.sec),{depth:lenS*S,bevelEnabled:false});geo.rotateY(Math.PI/2);return geo;});
+    // 有接頭分段時擠出 1 mm，各段以 scale.x 伸縮至該段長度
+    const geo=new THREE.ExtrudeGeometry(barShape(b.sec),{depth:(b.splice?1:lenS)*S,bevelEnabled:false});geo.rotateY(Math.PI/2);return geo;});
+  // 鋼材墊條：每支單獨一個資訊物件（點選時僅該支高亮），前段列出該支之位置、長度、接頭，其後為該層共用資訊
+  const one=(base,rows)=>({...base,title:base.title.replace('墊條：','墊條（單支）：'),rows:[...rows,...base.rows.filter(r=>r[0]!=='數量')]});
+  const Us=L.along.positions.map(v=>v*L.sf),Lu=+P.z27||150;
+  const endTxt=(z,isLap,ov)=>isLap?`並排搭接（重疊 ${fmt(ov)} mm）`:Us.some(u=>Math.abs(z-u)<=Lu/2)?'對接（落於 U 座）':'對接（跨中，型鋼端懸臂）';
   [45,135,225,315].forEach(a=>{
-    const arm=new THREE.Group();arm.rotation.y=a*Math.PI/180;parent.add(arm);
+    const arm=new THREE.Group();arm.rotation.y=a*Math.PI/180;parent.add(arm);const AN=ARMS[a]+' 腳';
     // --- bottom system, laid on the sloped beam bottom (beam + platforms) ---
     const sub=new THREE.Group();sub.position.set(g.R*S,g.h*S,0);sub.rotation.z=g.ang;arm.add(sub);
     CUR=plyInfo;box(sub,mat.ply,lenS,t,Wd,lenS/2,-t/2,0);
@@ -1371,11 +1587,24 @@ function buildForm(g,parent){
       if(b.dir==='T'){
         for(const d of b.pos){const x=Math.min(lenS-sc.B/2,Math.max(sc.B/2,d*L.sf));
           if(sc.tim)box(sub,m,sc.B,sc.H,Wd,x,y-sc.H/2,0);
-          else{const me=new THREE.Mesh(geos[i],m);me.position.set(x*S,y*S,0);me.userData.info=CUR;sub.add(me);}}
+          else{const me=new THREE.Mesh(geos[i],m);me.position.set(x*S,y*S,0);
+            me.userData.info=one(CUR,[['位置',`${AN}，第 ${b.pos.indexOf(d)+1} 支／共 ${b.n} 支（距井桶面沿斜長 ${fmt(x)} mm）`],['本支長度',`${fmt(Wd)} mm（${(Wd/1000*sc.kg).toFixed(1)} kg）`]]);sub.add(me);}}
       }else{
-        for(const v of b.pos){const n=v-g.w/2;
+        if(b.splice)b.pos.forEach((v,j)=>{const row=b.splice.rows[j],sp=b.splice;row.forEach((s,k)=>{const n=v-g.w/2+s.off,x0=s.a*L.sf,ln=(s.b-s.a)*L.sf;
+          const me=new THREE.Mesh(geos[i],m);me.position.set(x0*S,y*S,n*S);me.scale.x=ln;
+          const pv=row[k-1],nx=row[k+1],oh=s.b*L.sf-lenS;
+          me.userData.info=one(CUR,[
+            ['位置',`${AN}，第 ${j+1} 排（距梁中心 ${fmt(v-g.w/2)} mm${s.off?`，偏心 ${s.off>0?'+':''}${fmt(s.off)}`:''}），第 ${k+1} 支／本排 ${row.length} 支`],
+            ['本支長度',`${sp.list?`${stkLen(s.st)}（整支，不裁切）`:`${fmt(ln)} mm`}；${(ln/1000*sc.kg).toFixed(1)} kg`],
+            ['範圍',`距井桶面沿斜長 ${fmt(x0)}～${fmt(x0+ln)} mm${oh>1?`（伸出模板外 ${fmt(oh)}）`:''}`],
+            ['起端',pv?endTxt(x0,sp.lap,(pv.b-s.a)*L.sf):'井桶面'],
+            ['末端',nx?endTxt(x0+ln,sp.lap,(s.b-nx.a)*L.sf):'梁端'],
+            ...(s.ck&&s.ck.base?[['本支檢核',`下方 ${s.ck.ns} 個支點 → ${ckTxt(s.ck.base,'跨距')}`],...(s.ck.cw?[['接頭懸臂',ckTxt(s.ck.cw,'懸臂長')]]:[])]:[])]);
+          sub.add(me);});});
+        else for(const v of b.pos){const n=v-g.w/2;
           if(sc.tim)box(sub,m,lenS,sc.H,sc.B,lenS/2,y-sc.H/2,n);
-          else{const me=new THREE.Mesh(geos[i],m);me.position.set(0,y*S,n*S);me.userData.info=CUR;sub.add(me);}}
+          else{const me=new THREE.Mesh(geos[i],m);me.position.set(0,y*S,n*S);
+            me.userData.info=one(CUR,[['位置',`${AN}，第 ${b.pos.indexOf(v)+1} 排／共 ${b.n} 排（距梁中心 ${fmt(n)} mm）`],['本支長度',`${fmt(lenS)} mm（${(lenS/1000*sc.kg).toFixed(1)} kg）`]]);sub.add(me);}}
       }
       y-=sc.H;
     });
@@ -1416,7 +1645,7 @@ function buildShore(g,L,parent){
         rod(arm,MI.ring,67,[x,Bq-5,n],[x,Bq+5,n],16);
       }else{
       // 1 下調整座：底鈑 + 牙管 + 扳手（立於該列地面）
-      CUR=legInfo(L,AN,i,j,'jack','J63601 下調整座',[['伸出量',el2(b)+'（80～450）'],['高程',`${el2(gz)} ～ ${el2(gz+b)}`]]);
+      CUR=legInfo(L,AN,i,j,'jack','J48601 下調整座',[['伸出量',el2(b)+'（80～450）'],['高程',`${el2(gz)} ～ ${el2(gz+b)}`]]);
       box(arm,MI.jack,140,6,140,x,gz+3,n);
       rod(arm,MI.jack,24.1,[x,gz+6,n],[x,gz+b+150,n]);
       rod(arm,MI.jack,45,[x,gz+b-30,n],[x,gz+b,n],6);
@@ -1660,7 +1889,7 @@ $('armCsv').onclick=()=>{
 //   立面（動態圖塊，可見性切換規格）：
 //     J48601+V62020 地面起；「距離」＝下調整座伸出量（圓盤於距離+100）
 //     V60000／V61000 管底起，圓盤距底 400、間距 500；V62025+V62050 桿底起
-//     U63601S 型鋼底（U 座承壓面）起；「距離」＝伸出量−6（承壓鈑底至螺帽底）、「角度」＝梁底坡度
+//     U48600S（圖塊檔 U63601S.dwg）型鋼底（U 座承壓面）起；「距離」＝伸出量−6（承壓鈑底至螺帽底）、「角度」＝梁底坡度
 //     H66000 左端圓盤中心起往 +X；D60015 左下圓盤起往右上（跨距×1500），反向以 X 比例 −1 鏡射
 const lispStr=s=>'"'+[...String(s)].map(ch=>{const c=ch.codePointAt(0);
   if(ch==='"')return '\\"';if(ch==='\\')return '\\\\';if(c<32)return ' ';if(c<128)return ch;
@@ -1731,18 +1960,20 @@ function cadScript(mode){
   const SUP={s:0.6},SUPH=150;
   const uniq=v=>[...new Set(v.map(x=>Math.round(x*10)/10))].sort((x,y)=>x-y);
   // ---- 平面圖（井桶中心為原點；腳 a=315°、b=225°、c=135°、d=45°）----
-  const AANG={a:315,b:225,c:135,d:45},PP=(a,t,n)=>{const r=a*Math.PI/180,ca=Math.cos(r),sa=Math.sin(r);return [t*ca-n*sa,t*sa+n*ca];};
+  // 支撐架平面圖（井桶中心＝原點）與型鋼平面圖（其右側同一水平位置，原點右移 POX）分開繪製；剖面圖置於兩平面圖下方並排
+  let POX=0,POY=0;
+  const AANG={a:315,b:225,c:135,d:45},PP=(a,t,n)=>{const r=a*Math.PI/180,ca=Math.cos(r),sa=Math.sin(r);return [t*ca-n*sa+POX,t*sa+n*ca+POY];};
   const hw=g.w/2,t0=hw<g.R?Math.sqrt(g.R*g.R-hw*hw):0,ext=Math.max((g.L/2+hw+PWS)*Math.SQRT1_2+hw,g.R)+1500;
-  CIw('S',[0,0],g.R);
-  for(const a of [45,135])LNw('C',PP(a,-g.L/2-1000,0),PP(a,g.L/2+1000,0));
+  const planBase=()=>{                                    // 共用底圖：井桶、中心線、大梁、梁端墩
+    CIw('S',[POX,POY],g.R);
+    for(const a of [45,135])LNw('C',PP(a,-g.L/2-1000,0),PP(a,g.L/2+1000,0));
+    for(const a of Object.values(AANG)){
+      PLw('S',0,[PP(a,t0,hw),PP(a,g.L/2,hw),PP(a,g.L/2,-hw),PP(a,t0,-hw)]);
+      const pw=P.q3/2;PLw('S',1,[PP(a,g.pIn,pw),PP(a,g.pOut,pw),PP(a,g.pOut,-pw),PP(a,g.pIn,-pw)]);}
+  };
+  planBase();
   for(const [arm,a] of Object.entries(AANG)){
-    PLw('S',0,[PP(a,t0,hw),PP(a,g.L/2,hw),PP(a,g.L/2,-hw),PP(a,t0,-hw)]);
-    const pw=P.q3/2;PLw('S',1,[PP(a,g.pIn,pw),PP(a,g.pOut,pw),PP(a,g.pOut,-pw),PP(a,g.pIn,-pw)]);
     const AD=L.arms[arm],cols=AD.cols,rad=a*Math.PI/180;
-    // 最下層墊條（平面）：縱向沿各排、橫向沿各列
-    {const bb=L.bars.at(-1),hb=bb.sec.B/2;
-     if(bb.dir==='L')for(const n of L.pos)for(const s of [-1,1])LNw('H',PP(a,g.R,n+s*hb),PP(a,g.R+L.len,n+s*hb));
-     else for(const col of cols)for(const s of [-1,1])LNw('H',PP(a,col.t+s*hb,-hw-PWS),PP(a,col.t+s*hb,hw+PWS));}
     // 平面圖塊座標取小數 4 位、角度 10 位，使各桿件十字標記與圓盤十字完全重合（不因捨入產生 0.1 mm 偏差）
     const f4=v=>v.toFixed(4);
     for(const col of cols)for(const n of L.pos){const p=PP(a,col.t,n);PLAN('Plan_60.2 Ring',p,rad.toFixed(10),1);}
@@ -1774,6 +2005,38 @@ function cadScript(mode){
   }
   DIM('h',[-g.R,0],[g.R,0],[0,0]);
   TXw('T',[0,-ext-900],550,'SHORING PLAN');
+  // ---- 型鋼平面圖：最下層墊條（縱向：各排分段、接頭；橫向：各列）＋上調整座 U 型鈑位置 ----
+  POX=2*ext+3000;
+  planBase();
+  {const bb=L.bars.at(-1),sc=bb.sec,hb=sc.B/2,sp=bb.splice,Uw=+P.z26||170,Lu=(+P.z27||150)/L.sf,k=L.pos.length;
+   const nMax=Math.max(...L.pos),nMin=Math.min(...L.pos);
+   // 縱向型鋼分段尺寸：標註位置依平面投影，文字改為沿梁底斜長之實際長度（水平距離 × sf）
+   const chainS=(a,ts,n,off)=>{for(let i=0;i<ts.length-1;i++){const A=PP(a,ts[i],n),B=PP(a,ts[i+1],n),dx=B[0]-A[0],dy=B[1]-A[1],l=Math.hypot(dx,dy)||1;
+     DIM('al',A,B,[(A[0]+B[0])/2-dy/l*off,(A[1]+B[1])/2+dx/l*off],{...SUP,t:String(Math.round((ts[i+1]-ts[i])*L.sf))});}};
+   for(const [arm,a] of Object.entries(AANG)){
+     const cols=L.arms[arm].cols,tEnd=g.R+L.len;
+     for(const col of cols)for(const n of L.pos)PLw('P',1,[PP(a,col.t-Lu/2,n-Uw/2),PP(a,col.t+Lu/2,n-Uw/2),PP(a,col.t+Lu/2,n+Uw/2),PP(a,col.t-Lu/2,n+Uw/2)]);
+     if(bb.dir==='L'&&sp){
+       L.pos.forEach((n,j)=>{for(const s of sp.rows[j]){const c=n+s.off,t1=g.R+s.a,t2=g.R+s.b;   // 分段（接頭）：各段畫成矩形
+         PLw('H',1,[PP(a,t1,c-hb),PP(a,t2,c-hb),PP(a,t2,c+hb),PP(a,t1,c+hb)]);}});
+       // 分段尺寸：外側排（+n）標於外側；另一組接頭（相鄰排）標於另一側
+       const jO=k-1,jI=k<2?-1:((jO%2)===0?1:0);
+       // 每支型鋼標其全長（實際長度＝裁切長度）；搭接時相鄰兩支重疊，奇數支外移一層避免重疊
+       const segDim=(j,off)=>sp.rows[j].forEach((s,i)=>chainS(a,[g.R+s.a,g.R+s.b],L.pos[j],off+(sp.lap&&i%2?Math.sign(off)*450:0)));
+       segDim(jO,nMax-L.pos[jO]+900);
+       if(jI>=0&&sp.joints)segDim(jI,-(L.pos[jI]-nMin+900));
+     }else if(bb.dir==='L'){
+       for(const n of L.pos)PLw('H',1,[PP(a,g.R,n-hb),PP(a,tEnd,n-hb),PP(a,tEnd,n+hb),PP(a,g.R,n+hb)]);
+       chainS(a,[g.R,tEnd],nMax,900);
+     }else for(const col of cols)PLw('H',1,[PP(a,col.t-hb,-hw-PWS),PP(a,col.t+hb,-hw-PWS),PP(a,col.t+hb,hw+PWS),PP(a,col.t-hb,hw+PWS)]);
+     chainAl(uniq(L.pos).map(n=>PP(a,cols.at(-1).t,n)),-(tEnd-cols.at(-1).t+800),SUP);
+     tag(PP(a,g.L/2+PWE+3500,0),arm);
+   }
+   // 圖名（依材料）＋其下型鋼型號（如 H150×75×5×7mm）
+   TXw('T',[POX,POY-ext-900],550,sc.tim?'TIMBER BEARER PLAN':sc.t==='h'?'H BEAM PLAN':sc.t==='c'?'CHANNEL PLAN':'BOX TUBE PLAN');
+   TXw('T',[POX,POY-ext-1650],350,(sc.tim?`${fmt(sc.B)}×${fmt(sc.H)}`:sc.short.replace(/^□/,'BOX '))+'mm'+(sc.x&&sc.x.custom?' (CUSTOM)':''));
+  }
+  POX=0;POY=0;
   // ---- 剖面圖（同網頁剖面：左側腳在左、右側腳在右，取第 1 排）----
   const reach=g.ext+PWE+600,pedTop=g.top+P.q4;
   const gpts=arm=>groundProfile(arm,reach);               // 含垂直段（同一距離兩個高程）
@@ -1795,7 +2058,9 @@ function cadScript(mode){
       let off=0;
       for(let bi=L.bars.length-1;bi>=0;bi--){
         const bb=L.bars[bi],sc=bb.sec,ly=sc.tim?'F':'H';
-        if(bb.dir==='L')for(const dy of [off,off+sc.H])LNw(ly,W(sg*g.R,yAt(g.R)+dy),W(sg*hEnd,yAt(hEnd)+dy));
+        if(bb.dir==='L'&&bb.splice)for(const s of bb.splice.rows[0]){const t1=g.R+s.a,t2=g.R+s.b;     // 第 1 排各段（接頭處段端線；搭接段重疊）
+          PLw(ly,1,[W(sg*t1,yAt(t1)+off),W(sg*t2,yAt(t2)+off),W(sg*t2,yAt(t2)+off+sc.H),W(sg*t1,yAt(t1)+off+sc.H)]);}
+        else if(bb.dir==='L')for(const dy of [off,off+sc.H])LNw(ly,W(sg*g.R,yAt(g.R)+dy),W(sg*hEnd,yAt(hEnd)+dy));
         else{
           // 橫向墊條斷面：底邊貼合下層（依梁底斜率旋轉），且整支落在型鋼長度範圍內（井桶面～梁端，沿斜長）
           const ca=Math.cos(g.ang),sa=Math.sin(g.ang),lenS=L.len*L.sf;
@@ -1923,10 +2188,11 @@ function cadScript(mode){
     TXw('T',W(0,-below-1500),550,`SECTION ${left.toUpperCase()}-${right.toUpperCase()}`);
     return below;
   };
-  const sx=ext+2500+g.L/2+PWE+1200;
-  const belowAC=sect('a','c',sx,0);
-  const gMinBD=Math.min(0,...['b','d'].flatMap(a=>gpts(a).map(p=>p[1]))),belowBD=Math.max(Math.min(P.q6,g.h*0.6),-gMinBD+300);
-  sect('b','d',sx,-(belowAC+2500+pedTop+1500));
+  // 剖面 A-C、B-D：置於平面圖下方同一水平位置並排（左緣對齊支撐架平面圖左緣）；地面線（y＝oy）同高
+  const halfS=g.L/2+PWE+1700,oyS=-(ext+1850)-2500-(pedTop+1300);
+  const oxA=-ext+halfS;
+  sect('a','c',oxA,oyS);
+  sect('b','d',oxA+2*halfS+2500,oyS);
   // ---- 收尾：縮放、存檔、回報缺少之圖塊檔 ----
   E('(command "_.ZOOM" "_E")');
   E('(setvar "FILEDIA" 1)(setvar "CMDECHO" 1)');
@@ -1971,9 +2237,9 @@ class DxfDoc{
     }
     this.blocks.set(name,arr);return name;}
   // 下調整座（J）／U 型座（U）：依伸出量於兩組量測幾何間線性內插，各伸出量各為一個圖塊
-  //   U 型活動調整座（U63601S）：rot（弧度，逆時針為正）＝梁底斜率；U 型鈑與其夾座繞插銷（0,−66）轉動，
+  //   U 型活動調整座（U48600S）：rot（弧度，逆時針為正）＝梁底斜率；U 型鈑與其夾座繞插銷（0,−66）轉動，
   //   並微調高程使 U 型鈑承壓面中心仍落在型鋼底斜線上（插入點＝承壓面中心）；螺桿、螺帽、內側吊耳不動
-  stretch(kind,d,rot){const lib=cadLib(),[ka,kb,da,db,base]=kind==='J'?['J@100','J@300',100,300,'J48601+V62020_']:['U@135','U@335',135,335,'U63601S_'];
+  stretch(kind,d,rot){const lib=cadLib(),[ka,kb,da,db,base]=kind==='J'?['J@100','J@300',100,300,'J48601+V62020_']:['U@135','U@335',135,335,'U48600S_'];
     rot=kind==='U'&&Math.abs(rot||0)>1e-6?rot:0;
     const dd=Math.round(d*10)/10,name=base+(kind==='J'?'B':'U')+String(dd).replace('.','_')+(rot?'_R'+String(Math.round(rot*180/Math.PI*1000)).replace('-','M'):'');
     if(this.blocks.has(name))return name;
@@ -2128,9 +2394,9 @@ async function dirLabel(){
 }
 function prjName(){const n=$('prjName').value.trim().slice(0,80);if(!n){prjMsg('請先輸入專案名稱。',true);$('prjName').focus();return null;}return n;}
 function prjApply(d,name){
-  P={...DEF};HSEL=DEF_H;BARS=DEF_BARS();GROUND=flatGround();MAT={};CAD={...CADDEF};
+  P={...DEF};HSEL=DEF_H;BARS=DEF_BARS();GROUND=flatGround();MAT={};STK={};CAD={...CADDEF};
   applyState(d);PRJ=name||PRJ;
-  renderMat();renderBars();for(const k of KEYS)$(k).value=P[k];$('prjName').value=PRJ;
+  renderMat();renderStk();renderBars();for(const k of KEYS)$(k).value=P[k];$('prjName').value=PRJ;
   update();fitView();prjTitle();
 }
 function prjTitle(){document.title=(PRJ?PRJ+' － ':'')+'井桶十字梁模型';}
